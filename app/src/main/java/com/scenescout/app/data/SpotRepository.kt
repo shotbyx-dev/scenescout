@@ -1,5 +1,7 @@
 package com.scenescout.app.data
 
+import kotlin.math.pow
+
 /**
  * Spot data source. v1 ships with curated sample spots so the app works
  * offline on first run. This interface is where the real backends plug in:
@@ -147,6 +149,100 @@ class SampleSpotRepository : SpotRepository {
             aiScore = 87, communityRating = 4.5, reviewCount = 89,
             permit = PermitGuide.lookup("Miami, FL"),
         ),
+        // ---- Fort Lauderdale & beyond: near the user's home turf ----
+        Spot(
+            id = "ftl-beach",
+            name = "Fort Lauderdale Beach",
+            latitude = 26.1189, longitude = -80.1046,
+            description = "Palm-lined A1A strip, white sand, sunrise over the Atlantic. " +
+                "Clean wide shots by day, neon glow by night.",
+            tags = listOf("beach", "sunrise", "palm trees", "neon"),
+            bestFor = listOf(ShootType.SCENIC, ShootType.MUSIC_VIDEO, ShootType.DRONE),
+            aiScore = 89, communityRating = 4.6, reviewCount = 143,
+            permit = PermitGuide.lookup("Miami, FL"),
+        ),
+        Spot(
+            id = "riverwalk",
+            name = "Riverwalk & Las Olas",
+            latitude = 26.1194, longitude = -80.1373,
+            description = "Downtown riverfront with bridges, yachts, and a glowing skyline. " +
+                "Cinematic night reflections on the New River.",
+            tags = listOf("skyline", "river", "night", "bridges", "urban"),
+            bestFor = listOf(ShootType.NARRATIVE, ShootType.MUSIC_VIDEO, ShootType.SCENIC),
+            aiScore = 91, communityRating = 4.7, reviewCount = 118,
+            permit = PermitGuide.lookup("Miami, FL"),
+        ),
+        Spot(
+            id = "fatvillage",
+            name = "FATVillage Arts District",
+            latitude = 26.1218, longitude = -80.1470,
+            description = "Warehouse blocks covered in murals, rusted roll-up doors, " +
+                "string lights. Raw industrial texture minutes from downtown.",
+            tags = listOf("murals", "warehouses", "gritty", "industrial", "graffiti"),
+            bestFor = listOf(ShootType.MUSIC_VIDEO, ShootType.RUN_AND_GUN, ShootType.NARRATIVE),
+            aiScore = 87, communityRating = 4.5, reviewCount = 89,
+            permit = PermitGuide.lookup("Miami, FL"),
+        ),
+        Spot(
+            id = "hollywood-broadwalk",
+            name = "Hollywood Beach Broadwalk",
+            latitude = 26.0113, longitude = -80.1170,
+            description = "Retro beach motels with vintage neon signs along a 2.5-mile " +
+                "boardwalk. Pure Americana time capsule.",
+            tags = listOf("neon", "retro", "boardwalk", "motels", "americana"),
+            bestFor = listOf(ShootType.MUSIC_VIDEO, ShootType.NARRATIVE, ShootType.SCENIC),
+            aiScore = 88, communityRating = 4.6, reviewCount = 102,
+            permit = PermitGuide.lookup("Miami, FL"),
+        ),
+        Spot(
+            id = "port-everglades",
+            name = "Port Everglades",
+            latitude = 26.0867, longitude = -80.1167,
+            description = "Towering container cranes and stacked shipping containers. " +
+                "Massive industrial scale — shoot from public roads at the perimeter.",
+            tags = listOf("industrial", "cranes", "containers", "gritty", "scale"),
+            bestFor = listOf(ShootType.MUSIC_VIDEO, ShootType.DRONE, ShootType.RUN_AND_GUN),
+            aiScore = 85, communityRating = 4.3, reviewCount = 64,
+            permit = PermitInfo(
+                PermitLevel.SIMPLE,
+                "Stay on public roads outside the port gates; the cranes read " +
+                    "huge on camera from a distance.",
+                "Port Everglades", "https://www.porteverglades.net",
+            ),
+        ),
+        Spot(
+            id = "dania-pier",
+            name = "Dania Beach Pier",
+            latitude = 26.0523, longitude = -80.1110,
+            description = "Old-school fishing pier, weathered wood, pelicans, and empty " +
+                "sunrise beaches. Moody and quiet at dawn.",
+            tags = listOf("pier", "sunrise", "weathered", "ocean", "moody"),
+            bestFor = listOf(ShootType.SCENIC, ShootType.MUSIC_VIDEO, ShootType.NARRATIVE),
+            aiScore = 86, communityRating = 4.5, reviewCount = 77,
+            permit = PermitGuide.lookup("Miami, FL"),
+        ),
+        Spot(
+            id = "bayfront-park",
+            name = "Bayfront Park & Bayside",
+            latitude = 25.7792, longitude = -80.1839,
+            description = "Marina, palm promenade, and the Skyviews ferris wheel against " +
+                "the downtown skyline. Built-in production design.",
+            tags = listOf("skyline", "marina", "ferris wheel", "night", "urban"),
+            bestFor = listOf(ShootType.MUSIC_VIDEO, ShootType.SCENIC, ShootType.NARRATIVE),
+            aiScore = 90, communityRating = 4.6, reviewCount = 156,
+            permit = PermitGuide.lookup("Miami, FL"),
+        ),
+        Spot(
+            id = "matheson-hammock",
+            name = "Matheson Hammock Park",
+            latitude = 25.6828, longitude = -80.2797,
+            description = "Man-made atoll pool ringed by mangroves, plus dense hammock " +
+                "trails. Otherworldly and empty on weekday mornings.",
+            tags = listOf("mangroves", "atoll", "nature", "moody", "empty"),
+            bestFor = listOf(ShootType.SCENIC, ShootType.DRONE, ShootType.MUSIC_VIDEO),
+            aiScore = 88, communityRating = 4.7, reviewCount = 93,
+            permit = PermitGuide.lookup("Miami, FL"),
+        ),
     )
 
     private val reviews = listOf(
@@ -175,8 +271,27 @@ class SampleSpotRepository : SpotRepository {
     )
 
     override fun nearbySpots(latitude: Double, longitude: Double, radiusKm: Double): List<Spot> {
-        // v1: sample data is Miami-based; real impl queries Places API by lat/lng.
-        return spots.sortedByDescending { ScenicScorer.scoreSpot(it).overall }
+        // Real GPS filtering: haversine distance, sorted nearest-first, then best score.
+        return spots
+            .map { it to haversineKm(latitude, longitude, it.latitude, it.longitude) }
+            .filter { (_, km) -> km <= radiusKm }
+            .sortedWith(
+                compareBy<Pair<Spot, Double>> { (_, km) -> km }
+                    .thenByDescending { (spot, _) -> ScenicScorer.scoreSpot(spot).overall },
+            )
+            .map { (spot, _) -> spot }
+    }
+
+    private fun haversineKm(
+        lat1: Double, lon1: Double, lat2: Double, lon2: Double,
+    ): Double {
+        val r = 6371.0
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = Math.sin(dLat / 2).pow(2.0) +
+            Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+            Math.sin(dLon / 2).pow(2.0)
+        return 2 * r * Math.asin(Math.sqrt(a))
     }
 
     override fun spotById(id: String): Spot? = spots.firstOrNull { it.id == id }

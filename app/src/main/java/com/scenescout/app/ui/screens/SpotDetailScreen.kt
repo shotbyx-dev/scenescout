@@ -29,7 +29,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +46,7 @@ import com.scenescout.app.data.Spot
 import com.scenescout.app.data.SpotReview
 import com.scenescout.app.data.SunTimes
 import com.scenescout.app.data.imagery.BestImagery
+import com.scenescout.app.data.imagery.SampleImageryRepository
 import com.scenescout.app.data.imagery.SpotImage
 import com.scenescout.app.ui.brief.BriefPdfButton
 import java.time.LocalDate
@@ -53,10 +58,17 @@ import java.time.ZoneId
 fun SpotDetailScreen(
     spot: Spot,
     reviews: List<SpotReview>,
-    images: List<SpotImage>,
+    imagery: SampleImageryRepository,
     onBack: () -> Unit,
 ) {
     val score = remember(spot) { ScenicScorer.scoreSpot(spot) }
+    // Real nearby photos load asynchronously (Wikimedia Commons, no key needed).
+    var images by remember(spot.id) { mutableStateOf(imagery.imagesFor(spot)) }
+    var photosLoading by remember(spot.id) { mutableStateOf(true) }
+    LaunchedEffect(spot.id) {
+        images = imagery.imagesForAsync(spot)
+        photosLoading = false
+    }
     // Sample coordinates are Miami; real app uses the spot's city timezone.
     val sun = remember(spot) {
         SunTimes.forDate(
@@ -116,11 +128,20 @@ fun SpotDetailScreen(
                 reviews = reviews,
                 images = images,
             )
-            // Imagery strip — sharpest first, with attribution + AI badge.
-            if (images.isNotEmpty()) {
-                Column {
-                    Text("Street views", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(8.dp))
+            // Imagery strip — real nearby photos, sharpest first, with credit.
+            Column {
+                Text("Photos near this spot", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                if (photosLoading && images.isEmpty()) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Finding real photos near this spot…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (images.isNotEmpty()) {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(images, key = { it.url }) { image ->
                             Card(
@@ -138,7 +159,7 @@ fun SpotDetailScreen(
                                             .clip(MaterialTheme.shapes.medium),
                                     )
                                     Column(Modifier.padding(8.dp)) {
-                                        Text(image.source.attribution,
+                                        Text(image.credit ?: image.source.attribution,
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         if (image.source.analyzableByAi) {
@@ -156,8 +177,8 @@ fun SpotDetailScreen(
                     }
                     if (!BestImagery.hasAnalyzableImage(images)) {
                         Text(
-                            "These previews are display-only (Google ToS). " +
-                                "AI scoring uses Mapillary or uploaded photos.",
+                            "Real photos from Wikimedia Commons contributors, " +
+                                "shown with credit.",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

@@ -15,6 +15,7 @@ object BestImagery {
     private val displayOrder = listOf(
         ImagerySource.GOOGLE_PLACE_PHOTO,
         ImagerySource.GOOGLE_STREET_VIEW,
+        ImagerySource.WIKIMEDIA_COMMONS,
         ImagerySource.MAPILLARY,
         ImagerySource.USER_UPLOAD,
     )

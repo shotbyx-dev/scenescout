@@ -1,6 +1,7 @@
 package com.scenescout.app.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.scenescout.app.data.Spot
 import com.scenescout.app.data.SpotReview
+import com.scenescout.app.ui.brand.BrandWatermark
 
 /** Community tab: latest reviews with shoot notes ("nobody bothered us", best light). */
 @Composable
@@ -32,7 +34,9 @@ fun CommunityScreen(
     onSpotClick: (Spot) -> Unit,
 ) {
     val byId = spots.associateBy { it.id }
-    Column(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize()) {
+        BrandWatermark()
+        Column(Modifier.fillMaxSize()) {
         Text(
             "Community intel",
             style = MaterialTheme.typography.headlineSmall,
@@ -94,4 +98,5 @@ fun CommunityScreen(
             }
         }
     }
+}
 }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Map
@@ -38,10 +39,12 @@ import com.scenescout.app.data.Spot
 import com.scenescout.app.data.imagery.BestImagery
 import com.scenescout.app.data.imagery.SampleImageryRepository
 import com.scenescout.app.data.imagery.SpotImage
+import com.scenescout.app.data.planner.PlannerStore
 import com.scenescout.app.ui.screens.AboutScreen
 import com.scenescout.app.ui.screens.CommunityScreen
 import com.scenescout.app.ui.screens.DiscoverScreen
 import com.scenescout.app.ui.screens.MapScreen
+import com.scenescout.app.ui.screens.PlannerScreen
 import com.scenescout.app.ui.screens.ScoutScreen
 import com.scenescout.app.ui.screens.SpotDetailScreen
 import com.scenescout.app.ui.theme.SceneScoutTheme
@@ -49,6 +52,7 @@ import com.scenescout.app.ui.theme.SceneScoutTheme
 private enum class Tab(val label: String, val icon: ImageVector) {
     MAP("Map", Icons.Filled.Map),
     DISCOVER("Discover", Icons.Filled.Explore),
+    PLANNER("Planner", Icons.Filled.Assignment),
     SCOUT("AI Scout", Icons.Filled.AutoAwesome),
     COMMUNITY("Community", Icons.Filled.People),
 }
@@ -104,6 +108,8 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                 mapillaryToken = BuildConfig.MAPILLARY_TOKEN,
             )
         }
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val plannerStore = remember { PlannerStore(context) }
         var userLocation by remember { mutableStateOf<LatLng?>(null) }
         var locationAsked by remember { mutableStateOf(false) }
 
@@ -144,7 +150,7 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
             openSpot != null -> SpotDetailScreen(
                 spot = openSpot!!,
                 reviews = repo.reviewsFor(openSpot!!.id),
-                images = imagesBySpot[openSpot!!.id].orEmpty(),
+                imagery = imageryRepo,
                 onBack = { openSpot = null },
             )
             else -> Scaffold(
@@ -180,6 +186,7 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                             onSpotClick = goToSpot,
                         )
                         Tab.DISCOVER -> DiscoverScreen(spots, heroImageFor, goToSpot, searchTag)
+                        Tab.PLANNER -> PlannerScreen(spots, plannerStore)
                         Tab.SCOUT -> ScoutScreen(spots, scoutQuery, goToSpot)
                         Tab.COMMUNITY -> CommunityScreen(spots, allReviews, goToSpot)
                     }

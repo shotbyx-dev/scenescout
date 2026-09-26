@@ -1,6 +1,7 @@
 package com.scenescout.app.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -18,7 +19,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SuggestionChip
+import androidx.compose.foundation.border
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -35,6 +36,7 @@ import com.scenescout.app.data.MoodMatcher
 import com.scenescout.app.data.ScenicScorer
 import com.scenescout.app.data.Spot
 import com.scenescout.app.data.VibeMatcher
+import com.scenescout.app.ui.brand.BrandWatermark
 
 /**
  * AI Scout tab: two ways to find a location.
@@ -67,7 +69,9 @@ fun ScoutScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize()) {
+        BrandWatermark()
+        Column(Modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = tab) {
             Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Vibe") })
             Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Song mood") })
@@ -104,6 +108,7 @@ fun ScoutScreen(
                 )
             }
         }
+    }
     }
 }
 
@@ -241,7 +246,18 @@ private fun ScoutResultCard(
                 Spacer(Modifier.height(4.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     reasons.forEach { reason ->
-                        SuggestionChip(onClick = {}, label = { Text(reason) })
+                        // Informational pill — deliberately not clickable.
+                        Text(
+                            reason,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .border(
+                                    1.dp, MaterialTheme.colorScheme.outlineVariant,
+                                    MaterialTheme.shapes.small,
+                                )
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                        )
                     }
                 }
             }

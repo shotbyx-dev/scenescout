@@ -39,6 +39,27 @@ class SampleImageryRepository(
     }
 
     /**
+     * Full gallery: sync sources plus real nearby photos from Wikimedia
+     * Commons (free, no key). Call from a coroutine and update the UI.
+     */
+    suspend fun imagesForAsync(spot: Spot): List<SpotImage> {
+        val base = imagesFor(spot).toMutableList()
+        // Wikimedia photos are real and location-relevant — put them first
+        // when there's nothing sharper from Google.
+        val wiki = WikimediaClient.searchPhotos(spot.latitude, spot.longitude)
+        if (wiki.isNotEmpty() && base.none {
+                it.source == ImagerySource.GOOGLE_STREET_VIEW ||
+                    it.source == ImagerySource.GOOGLE_PLACE_PHOTO
+            }
+        ) {
+            base.addAll(0, wiki)
+        } else {
+            base += wiki
+        }
+        return BestImagery.gallery(base)
+    }
+
+    /**
      * Live Mapillary search for a spot. Returns null when no token is set.
      * The next iteration fetches this URL and turns the JSON into SpotImages
      * via [MapillaryClient.bestThumbnail].

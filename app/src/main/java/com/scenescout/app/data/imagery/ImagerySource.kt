@@ -29,6 +29,12 @@ enum class ImagerySource(
         attribution = "Imagery © Mapillary contributors (CC BY-SA)",
     ),
 
+    /** Wikimedia Commons geotagged photos — real nearby photos, display only. */
+    WIKIMEDIA_COMMONS(
+        analyzableByAi = false,
+        attribution = "Imagery © Wikimedia Commons contributors",
+    ),
+
     /** Photos the user (or community) uploaded — display + AI analysis allowed. */
     USER_UPLOAD(
         analyzableByAi = true,
@@ -45,4 +51,6 @@ data class SpotImage(
     val capturedAtMs: Long? = null,
     /** Facing direction in degrees, when known (Mapillary compass_angle). */
     val compassDeg: Double? = null,
+    /** Per-photo credit (e.g. the Wikimedia author); falls back to source.attribution. */
+    val credit: String? = null,
 )
