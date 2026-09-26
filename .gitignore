@@ -1,0 +1,11 @@
+# Gradle
+.gradle/
+build/
+# Local config (contains SDK path + API keys — never commit)
+local.properties
+# Android Studio
+.idea/
+*.iml
+# OS
+.DS_Store
+.test-run/
