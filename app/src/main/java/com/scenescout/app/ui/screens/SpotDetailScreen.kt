@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -26,7 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.AssistChip
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -62,6 +63,30 @@ fun SpotDetailScreen(
             LocalDate.now(), ZoneId.of("America/New_York"),
         )
     }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val shareSpot = {
+        val bestFor = spot.bestFor.joinToString(", ") { it.label }
+        val reviewLine = reviews.firstOrNull()?.let {
+            "\uD83D\uDCAC \"${it.text}\" — ${it.author}\n"
+        }.orEmpty()
+        val text = buildString {
+            appendLine("\uD83C\uDFAC ${spot.name} — ${score.overall}/100 (${score.label})")
+            appendLine("\uD83D\uDCCD ${spot.latitude}, ${spot.longitude}")
+            appendLine("\uD83C\uDF05 Golden hour: " +
+                "${SunTimes.format(sun.morningGoldenStart)}–${SunTimes.format(sun.morningGoldenEnd)} / " +
+                "${SunTimes.format(sun.eveningGoldenStart)}–${SunTimes.format(sun.eveningGoldenEnd)}")
+            appendLine("\uD83C\uDFA5 Best for: $bestFor")
+            appendLine("\uD83D\uDCCB Permit: ${spot.permit.level.label} — ${spot.permit.details}")
+            append(reviewLine)
+            append("Shared from SceneScout — Created by Shotbyx")
+        }
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "Shoot location: ${spot.name}")
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        context.startActivity(Intent.createChooser(intent, "Share this spot"))
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -69,6 +94,11 @@ fun SpotDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = shareSpot) {
+                        Icon(Icons.Filled.Share, contentDescription = "Share this spot")
                     }
                 },
             )
@@ -105,9 +135,11 @@ fun SpotDetailScreen(
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         if (image.source.analyzableByAi) {
-                                            AssistChip(
-                                                onClick = {},
-                                                label = { Text("AI can score this") },
+                                            // Informational badge, not a button.
+                                            Text(
+                                                "✓ AI can score this",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary,
                                             )
                                         }
                                     }

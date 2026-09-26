@@ -30,6 +30,7 @@ fun DiscoverScreen(
     spots: List<Spot>,
     heroImageFor: (Spot) -> SpotImage?,
     onSpotClick: (Spot) -> Unit,
+    onTagClick: (String) -> Unit,
 ) {
     var filter by remember { mutableStateOf<ShootType?>(null) }
     val visible = remember(spots, filter) {
@@ -60,6 +61,6 @@ fun DiscoverScreen(
                 )
             }
         }
-        SpotList(visible, heroImageFor, onSpotClick)
+        SpotList(visible, heroImageFor, onSpotClick, onTagClick = onTagClick)
     }
 }

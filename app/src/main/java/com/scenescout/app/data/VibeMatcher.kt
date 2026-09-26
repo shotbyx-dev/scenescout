@@ -41,6 +41,13 @@ object VibeMatcher {
     )
 
     /**
+     * All word variants that count as a hit for [word]: the word itself plus
+     * its synonyms.
+     */
+    fun variantsFor(word: String): List<String> =
+        listOf(word) + (synonyms[word].orEmpty())
+
+    /**
      * Rank spots for a query. A query word scores a hit when the word itself
      * or any of its synonyms appears in the spot's searchable text.
      */
@@ -56,8 +63,7 @@ object VibeMatcher {
                 spot.tags.joinToString(" ") + " " +
                 spot.bestFor.joinToString(" ") { it.label }).lowercase()
             val hits = words.count { word ->
-                val variants = listOf(word) + (synonyms[word].orEmpty())
-                variants.any { haystack.contains(it) }
+                VibeMatcher.variantsFor(word).any { haystack.contains(it) }
             }
             if (hits == 0) null
             else {

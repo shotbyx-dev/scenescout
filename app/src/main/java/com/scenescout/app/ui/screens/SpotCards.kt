@@ -45,6 +45,7 @@ fun SpotCard(
     heroImage: SpotImage?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onTagClick: (String) -> Unit = {},
 ) {
     val score = ScenicScorer.scoreSpot(spot)
     Card(
@@ -124,7 +125,10 @@ fun SpotCard(
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     spot.tags.take(3).forEach { tag ->
-                        AssistChip(onClick = {}, label = { Text(tag) })
+                        AssistChip(
+                            onClick = { onTagClick(tag) },
+                            label = { Text(tag) },
+                        )
                     }
                 }
                 if (heroImage != null) {
@@ -192,6 +196,7 @@ fun SpotList(
     heroImageFor: (Spot) -> SpotImage?,
     onSpotClick: (Spot) -> Unit,
     modifier: Modifier = Modifier,
+    onTagClick: (String) -> Unit = {},
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -199,7 +204,11 @@ fun SpotList(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(spots, key = { it.id }) { spot ->
-            SpotCard(spot, heroImageFor(spot), onClick = { onSpotClick(spot) })
+            SpotCard(
+                spot, heroImageFor(spot),
+                onClick = { onSpotClick(spot) },
+                onTagClick = onTagClick,
+            )
         }
         item {
             Text(

@@ -127,8 +127,14 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
         var tab by remember { mutableStateOf(Tab.MAP) }
         var openSpot by remember { mutableStateOf<Spot?>(null) }
         var showAbout by remember { mutableStateOf(false) }
+        // Tag chips on Discover cards send their tag to AI Scout.
+        var scoutQuery by remember { mutableStateOf("") }
 
         val goToSpot: (Spot) -> Unit = { openSpot = it }
+        val searchTag: (String) -> Unit = { tag ->
+            scoutQuery = tag
+            tab = Tab.SCOUT
+        }
         val heroImageFor: (Spot) -> SpotImage? = { spot ->
             BestImagery.forDisplay(imagesBySpot[spot.id].orEmpty())
         }
@@ -173,8 +179,8 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                             heroImageFor = heroImageFor,
                             onSpotClick = goToSpot,
                         )
-                        Tab.DISCOVER -> DiscoverScreen(spots, heroImageFor, goToSpot)
-                        Tab.SCOUT -> ScoutScreen(spots, goToSpot)
+                        Tab.DISCOVER -> DiscoverScreen(spots, heroImageFor, goToSpot, searchTag)
+                        Tab.SCOUT -> ScoutScreen(spots, scoutQuery, goToSpot)
                         Tab.COMMUNITY -> CommunityScreen(spots, allReviews, goToSpot)
                     }
                 }
