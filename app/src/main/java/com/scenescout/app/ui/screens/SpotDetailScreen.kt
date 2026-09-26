@@ -76,7 +76,7 @@ fun SpotDetailScreen(
                 "${SunTimes.format(sun.morningGoldenStart)}–${SunTimes.format(sun.morningGoldenEnd)} / " +
                 "${SunTimes.format(sun.eveningGoldenStart)}–${SunTimes.format(sun.eveningGoldenEnd)}")
             appendLine("\uD83C\uDFA5 Best for: $bestFor")
-            appendLine("\uD83D\uDCCB Permit: ${spot.permit.level.label} — ${spot.permit.details}")
+            appendLine("\uD83D\uDCCB Permit: ${spot.permit.level.label} — ${spot.permit.summary}")
             append(reviewLine)
             append("Shared from SceneScout — Created by Shotbyx")
         }
