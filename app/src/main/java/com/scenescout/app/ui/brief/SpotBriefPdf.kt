@@ -32,7 +32,7 @@ object SpotBriefPdf {
     fun render(context: Context, brief: SpotBrief, hero: Bitmap?): File {
         val doc = PdfDocument()
         val page = doc.startPage(
-            PdfDocument.PageInfo.Builder(PAGE_W.toInt(), PAGE_H.toInt(), 1).build(),
+            PdfDocument.PageInfo.Builder(PAGE_W.toInt(), PAGE_H.toInt(), 1).create(),
         )
         try {
             draw(page.canvas, brief, hero)

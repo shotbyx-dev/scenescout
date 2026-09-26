@@ -43,6 +43,7 @@ import com.scenescout.app.data.SpotReview
 import com.scenescout.app.data.SunTimes
 import com.scenescout.app.data.imagery.BestImagery
 import com.scenescout.app.data.imagery.SpotImage
+import com.scenescout.app.ui.brief.BriefPdfButton
 import java.time.LocalDate
 import java.time.ZoneId
 
