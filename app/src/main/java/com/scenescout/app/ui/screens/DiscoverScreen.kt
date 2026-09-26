@@ -21,11 +21,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import com.scenescout.app.data.ShootType
 import com.scenescout.app.data.Spot
+import com.scenescout.app.data.imagery.SpotImage
 
 /** Discover tab: ranked list of spots, filterable by shoot type. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun DiscoverScreen(spots: List<Spot>, onSpotClick: (Spot) -> Unit) {
+fun DiscoverScreen(
+    spots: List<Spot>,
+    heroImageFor: (Spot) -> SpotImage?,
+    onSpotClick: (Spot) -> Unit,
+) {
     var filter by remember { mutableStateOf<ShootType?>(null) }
     val visible = remember(spots, filter) {
         if (filter == null) spots else spots.filter { it.bestFor.contains(filter) }
@@ -55,6 +60,6 @@ fun DiscoverScreen(spots: List<Spot>, onSpotClick: (Spot) -> Unit) {
                 )
             }
         }
-        SpotList(visible, onSpotClick)
+        SpotList(visible, heroImageFor, onSpotClick)
     }
 }

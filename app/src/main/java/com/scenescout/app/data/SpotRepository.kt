@@ -75,6 +75,78 @@ class SampleSpotRepository : SpotRepository {
             aiScore = 90, communityRating = 4.6, reviewCount = 187,
             permit = PermitGuide.lookup("Miami, FL"),
         ),
+        // ---- Urban / gritty / roadside: real texture for music videos ----
+        Spot(
+            id = "marine-stadium",
+            name = "Miami Marine Stadium",
+            latitude = 25.7447, longitude = -80.1698,
+            description = "Abandoned waterfront stadium swallowed by graffiti. " +
+                "Raw concrete, insane textures, total post-apocalyptic energy.",
+            tags = listOf("abandoned", "graffiti", "concrete", "decay", "urban",
+                "stadium", "gritty"),
+            bestFor = listOf(ShootType.MUSIC_VIDEO, ShootType.RUN_AND_GUN,
+                ShootType.NARRATIVE),
+            aiScore = 93, communityRating = 4.8, reviewCount = 156,
+            permit = PermitGuide.lookup("Miami, FL"),
+        ),
+        Spot(
+            id = "hialeah-railyard",
+            name = "Hialeah Rail Yard",
+            latitude = 25.8570, longitude = -80.2780,
+            description = "Freight yard with rusted boxcars, floodlights, and endless " +
+                "industrial lines. Best after dark from the perimeter.",
+            tags = listOf("industrial", "freight", "trains", "rust", "night",
+                "gritty", "urban"),
+            bestFor = listOf(ShootType.MUSIC_VIDEO, ShootType.RUN_AND_GUN),
+            aiScore = 85, communityRating = 4.3, reviewCount = 74,
+            permit = PermitGuide.lookup("Miami, FL"),
+        ),
+        Spot(
+            id = "us1-roadside",
+            name = "US-1 Roadside Relics",
+            latitude = 25.4475, longitude = -80.4783,
+            description = "Highway strip with junkyards, a broken-down truck or two, " +
+                "faded billboards, and dusty lots. Props everywhere you look.",
+            tags = listOf("roadside", "truck", "highway", "props", "junkyard",
+                "billboard", "dusty", "wreck"),
+            bestFor = listOf(ShootType.MUSIC_VIDEO, ShootType.RUN_AND_GUN,
+                ShootType.NARRATIVE),
+            aiScore = 82, communityRating = 4.5, reviewCount = 63,
+            permit = PermitInfo(
+                PermitLevel.SIMPLE,
+                "Roadside shoulders are usually fine for small crews; " +
+                    "private lots need the owner's okay.",
+            ),
+        ),
+        Spot(
+            id = "downtown-rooftop",
+            name = "Downtown Rooftop Garage",
+            latitude = 25.7745, longitude = -80.1930,
+            description = "Open-air parking rooftop: bare concrete, painted lines, " +
+                "and the skyline glowing behind you. Empty after 9pm.",
+            tags = listOf("rooftop", "concrete", "skyline", "night", "parking",
+                "urban"),
+            bestFor = listOf(ShootType.MUSIC_VIDEO, ShootType.NARRATIVE),
+            aiScore = 88, communityRating = 4.6, reviewCount = 112,
+            permit = PermitInfo(
+                PermitLevel.SIMPLE,
+                "Garage is private property — ask building management; " +
+                    "many allow small shoots off-hours.",
+            ),
+        ),
+        Spot(
+            id = "little-haiti",
+            name = "Little Haiti Murals",
+            latitude = 25.8250, longitude = -80.1950,
+            description = "Caribbean color everywhere: hand-painted murals, botanicas, " +
+                "record shops. Loud, joyful street energy.",
+            tags = listOf("murals", "colorful", "culture", "street", "paint",
+                "urban"),
+            bestFor = listOf(ShootType.MUSIC_VIDEO, ShootType.RUN_AND_GUN,
+                ShootType.SCENIC),
+            aiScore = 87, communityRating = 4.5, reviewCount = 89,
+            permit = PermitGuide.lookup("Miami, FL"),
+        ),
     )
 
     private val reviews = listOf(
@@ -90,6 +162,16 @@ class SampleSpotRepository : SpotRepository {
         SpotReview("r4", "vizcaya", "Sofia R.", 5,
             "Worth every penny of the location fee. Fountains at 4pm = magic.",
             "Booked 3 weeks out, staff was super helpful.", "afternoon"),
+        SpotReview("r5", "marine-stadium", "Marcus T.", 5,
+            "Shot a drill video here — had the place to ourselves for hours.",
+            "Graffiti walls are unreal on camera. Bring boots, rough ground.",
+            "golden hour"),
+        SpotReview("r6", "hialeah-railyard", "Dre", 4,
+            "Stay on the perimeter after dark. Floodlights are free production design.",
+            "Security patrols occasionally, keep it quick.", "night"),
+        SpotReview("r7", "us1-roadside", "Lena K.", 5,
+            "Found a broken-down truck that made the whole video.",
+            "Owner let us shoot for $20. Props everywhere on this strip.", "morning"),
     )
 
     override fun nearbySpots(latitude: Double, longitude: Double, radiusKm: Double): List<Spot> {

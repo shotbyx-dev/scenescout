@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.scenescout.app.data.ScenicScorer
 import com.scenescout.app.data.Spot
+import com.scenescout.app.data.VibeMatcher
 
 /**
  * AI Scout tab: describe the vibe you want ("moody neon alley for a night
@@ -55,7 +56,7 @@ fun ScoutScreen(spots: List<Spot>, onSpotClick: (Spot) -> Unit) {
         Spacer(Modifier.height(12.dp))
         Button(
             onClick = {
-                results = rankForQuery(query, spots)
+                results = VibeMatcher.rankForQuery(query, spots)
                 searched = true
             },
             enabled = query.isNotBlank(),
@@ -63,7 +64,7 @@ fun ScoutScreen(spots: List<Spot>, onSpotClick: (Spot) -> Unit) {
         Spacer(Modifier.height(16.dp))
         if (searched) {
             if (results.isEmpty()) {
-                Text("No matches yet — try words like neon, beach, urban, sunset.")
+                Text("No matches yet — try words like neon, beach, gritty, truck, abandoned.")
             } else {
                 results.forEach { (spot, match) ->
                     ScoutResultCard(spot, match) { onSpotClick(spot) }
@@ -109,20 +110,3 @@ private fun ScoutResultCard(spot: Spot, match: Int, onClick: () -> Unit) {
 }
 
 /** Simple keyword match; production version uses embeddings + vision scores. */
-internal fun rankForQuery(query: String, spots: List<Spot>): List<Pair<Spot, Int>> {
-    val words = query.lowercase().split(Regex("\\W+")).filter { it.length > 2 }.toSet()
-    if (words.isEmpty()) return emptyList()
-    return spots.mapNotNull { spot ->
-        val haystack = (spot.name + " " + spot.description + " " +
-            spot.tags.joinToString(" ") + " " +
-            spot.bestFor.joinToString(" ") { it.label }).lowercase()
-        val hits = words.count { haystack.contains(it) }
-        if (hits == 0) null
-        else {
-            val match = (hits.toDouble() / words.size * 100).toInt().coerceIn(1, 100)
-            // Blend vibe match with the spot's overall scenic score.
-            val blended = (match * 0.6 + ScenicScorer.scoreSpot(spot).overall * 0.4).toInt()
-            spot to blended
-        }
-    }.sortedByDescending { it.second }
-}
