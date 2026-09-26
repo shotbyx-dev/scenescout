@@ -30,6 +30,12 @@ data class Spot(
     val submittedBy: String = "SceneScout",
     /** Imagery for this spot; see ImagerySource for display vs AI rules. */
     val images: List<SpotImage> = emptyList(),
+    /**
+     * Google Places photo resource names, e.g. "places/abc/photos/xyz".
+     * Parallel [photoCredits] holds the author credit per photo.
+     */
+    val photoRefs: List<String> = emptyList(),
+    val photoCredits: List<String> = emptyList(),
 )
 
 /** A community review of a spot. */

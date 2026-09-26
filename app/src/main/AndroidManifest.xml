@@ -11,6 +11,12 @@
         android:label="SceneScout"
         android:theme="@style/Theme.SceneScout">
 
+        <!-- Google Maps SDK key: injected at build time from the MAPS_API_KEY
+             gradle property (GitHub secret in CI). -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

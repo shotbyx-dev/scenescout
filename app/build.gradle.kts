@@ -12,12 +12,15 @@ android {
         applicationId = "com.scenescout.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 8
-        versionName = "0.8.0"
+        versionCode = 9
+        versionName = "0.10.0"
 
-        // Google Maps API key: put MAPS_API_KEY=... in local.properties.
-        // The map screen shows a graceful placeholder until a real key is set.
-        val mapsKey: String = providers.gradleProperty("MAPS_API_KEY").getOrElse("MAPS_API_KEY_NOT_SET")
+        // Google Maps + Places API key: MAPS_API_KEY gradle property
+        // (local.properties for dev, GitHub secret MAPS_API_KEY in CI).
+        // The map shows a setup card until a real key is set; the same key
+        // powers Places discovery and Place Photos (About > API key).
+        val mapsKey: String = providers.gradleProperty("MAPS_API_KEY")
+            .getOrElse("MAPS_API_KEY_NOT_SET").ifBlank { "MAPS_API_KEY_NOT_SET" }
         manifestPlaceholders["MAPS_API_KEY"] = mapsKey
         buildConfigField("String", "MAPS_API_KEY", "\"$mapsKey\"")
         // Free token from mapillary.com/dashboard — enables AI-eligible street imagery.
@@ -59,8 +62,11 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.5")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.5")
 
-    // Maps + location: MapLibre (free, no API key) + Play Services location
-    implementation("org.maplibre.gl:android-sdk:11.7.0")
+    // Maps + location: Google Maps Compose + Play Services location.
+    // The Maps SDK key comes from the MAPS_API_KEY gradle property
+    // (CI: GitHub secret of the same name) via the manifest placeholder.
+    implementation("com.google.maps.android:maps-compose:4.3.3")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
     // Image loading (spot galleries, map thumbnails)

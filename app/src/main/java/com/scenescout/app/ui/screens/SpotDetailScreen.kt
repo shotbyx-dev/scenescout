@@ -47,7 +47,7 @@ import com.scenescout.app.data.Spot
 import com.scenescout.app.data.SpotReview
 import com.scenescout.app.data.SunTimes
 import com.scenescout.app.data.imagery.BestImagery
-import com.scenescout.app.data.imagery.SampleImageryRepository
+import com.scenescout.app.data.imagery.GoogleImageryRepository
 import com.scenescout.app.data.imagery.SpotImage
 import com.scenescout.app.ui.brief.BriefPdfButton
 import java.time.LocalDate
@@ -59,7 +59,7 @@ import java.time.ZoneId
 fun SpotDetailScreen(
     spot: Spot,
     reviews: List<SpotReview>,
-    imagery: SampleImageryRepository,
+    imagery: GoogleImageryRepository,
     onBack: () -> Unit,
 ) {
     val score = remember(spot) { ScenicScorer.scoreSpot(spot) }

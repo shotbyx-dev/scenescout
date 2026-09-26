@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -21,7 +22,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,117 +31,120 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MapStyleOptions
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.rememberCameraPositionState
 import com.scenescout.app.data.Spot
-import com.scenescout.app.data.imagery.SampleImageryRepository
+import com.scenescout.app.data.imagery.GoogleImageryRepository
 import com.scenescout.app.data.imagery.SpotImage
 import com.scenescout.app.ui.theme.GlassCard
 import com.scenescout.app.ui.theme.ShimmerBox
-import org.maplibre.android.MapLibre
-import org.maplibre.android.annotations.MarkerOptions
-import org.maplibre.android.camera.CameraPosition
-import org.maplibre.android.camera.CameraUpdateFactory
-import org.maplibre.android.geometry.LatLng
-import org.maplibre.android.maps.MapLibreMap
-import org.maplibre.android.maps.MapView
 
-/** Free dark basemap — no API key, no billing, works out of the box. */
-private const val DARK_STYLE_URL =
-    "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+/** Dark basemap style so the map matches the cinematic theme. */
+private const val DARK_MAP_STYLE = """[
+  {"elementType":"geometry","stylers":[{"color":"#1a1a1e"}]},
+  {"elementType":"labels.icon","stylers":[{"visibility":"off"}]},
+  {"elementType":"labels.text.fill","stylers":[{"color":"#8a8a93"}]},
+  {"elementType":"labels.text.stroke","stylers":[{"color":"#1a1a1e"}]},
+  {"featureType":"administrative","elementType":"geometry","stylers":[{"color":"#2a2a30"}]},
+  {"featureType":"poi","stylers":[{"visibility":"off"}]},
+  {"featureType":"road","elementType":"geometry.fill","stylers":[{"color":"#2c2c33"}]},
+  {"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#1a1a1e"}]},
+  {"featureType":"road","elementType":"labels.text.fill","stylers":[{"color":"#8a8a93"}]},
+  {"featureType":"transit","stylers":[{"visibility":"off"}]},
+  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#0e1626"}]}
+]"""
 
 /**
- * Map tab: centers on the user's GPS location with nearby shoot spots pinned.
- * Powered by MapLibre + OpenStreetMap/CARTO tiles — no API key needed.
+ * Map tab: Google Maps centered on GPS with nearby shoot spots pinned.
+ * Powered by the Maps SDK for Android (needs the API key); discovery and
+ * photos come from the Places API.
  */
 @Composable
 fun MapScreen(
     spots: List<Spot>,
     userLocation: LatLng?,
-    imagery: SampleImageryRepository?,
+    hasApiKey: Boolean,
+    imagery: GoogleImageryRepository?,
     onSpotClick: (Spot) -> Unit,
+    onOpenKeySettings: () -> Unit,
 ) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     var selected by remember { mutableStateOf<Spot?>(null) }
-    var mapLibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
-    val markerToSpot = remember { mutableMapOf<Long, Spot>() }
-
-    val mapView = remember {
-        // Required before ANY MapView is created, or MapLibre throws.
-        MapLibre.getInstance(context)
-        MapView(context).apply { onCreate(null) }
-    }
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_START -> mapView.onStart()
-                Lifecycle.Event.ON_RESUME -> mapView.onResume()
-                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
-                Lifecycle.Event.ON_STOP -> mapView.onStop()
-                Lifecycle.Event.ON_DESTROY -> mapView.onDestroy()
-                else -> Unit
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            mapView.onDestroy()
-        }
-    }
-
+    var recenterTick by remember { mutableStateOf(0) }
     val fallback = remember { LatLng(25.7826, -80.1867) } // Miami sample-data home
-
-    fun addMarkers(map: MapLibreMap) {
-        map.clear()
-        markerToSpot.clear()
-        spots.forEach { spot ->
-            val marker = map.addMarker(
-                MarkerOptions()
-                    .position(LatLng(spot.latitude, spot.longitude))
-                    .title(spot.name),
-            )
-            markerToSpot[marker.id] = spot
-        }
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(userLocation ?: fallback, 12f)
     }
 
-    LaunchedEffect(spots) {
-        mapLibreMap?.let(::addMarkers)
-    }
-    // Recenter when the GPS fix arrives after first composition.
-    LaunchedEffect(userLocation) {
-        val map = mapLibreMap ?: return@LaunchedEffect
+    // Recenter when the GPS fix arrives after first composition,
+    // or when the user taps the recenter button.
+    LaunchedEffect(userLocation, recenterTick) {
         userLocation?.let {
-            map.animateCamera(CameraUpdateFactory.newLatLngZoom(it, 12.0))
+            cameraPositionState.animate(
+                CameraUpdateFactory.newLatLngZoom(it, 12f), 800,
+            )
         }
     }
 
     Box(Modifier.fillMaxSize()) {
-        AndroidView(
-            factory = {
-                mapView.apply {
-                    getMapAsync { map ->
-                        map.uiSettings.isCompassEnabled = false
-                        map.cameraPosition = CameraPosition.Builder()
-                            .target(userLocation ?: fallback)
-                            .zoom(12.0)
-                            .build()
-                        map.setStyle(DARK_STYLE_URL) { addMarkers(map) }
-                        map.setOnMarkerClickListener { marker ->
-                            selected = markerToSpot[marker.id]
-                            true
+        if (!hasApiKey) {
+            // Honest setup state instead of a broken map.
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                GlassCard(modifier = Modifier.padding(24.dp)) {
+                    Column(Modifier.padding(20.dp)) {
+                        Text(
+                            "Google Maps key needed",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Add your Google API key once to unlock the map, " +
+                                "live discovery, and real photos.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Button(onClick = onOpenKeySettings) {
+                            Text("Add API key")
                         }
-                        mapLibreMap = map
                     }
                 }
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
+            }
+        } else {
+            GoogleMap(
+                modifier = Modifier.fillMaxSize(),
+                cameraPositionState = cameraPositionState,
+                properties = MapProperties(
+                    mapStyleOptions = MapStyleOptions(DARK_MAP_STYLE),
+                ),
+                uiSettings = MapUiSettings(
+                    compassEnabled = false,
+                    myLocationButtonEnabled = false,
+                ),
+                onMapClick = { selected = null },
+            ) {
+                spots.forEach { spot ->
+                    Marker(
+                        state = MarkerState(
+                            position = LatLng(spot.latitude, spot.longitude),
+                        ),
+                        title = spot.name,
+                        onClick = {
+                            selected = spot
+                            true
+                        },
+                    )
+                }
+            }
+        }
         if (userLocation == null) {
             Card(
                 modifier = Modifier
@@ -160,13 +163,9 @@ fun MapScreen(
                 )
             }
         }
-        if (userLocation != null) {
+        if (userLocation != null && hasApiKey) {
             FloatingActionButton(
-                onClick = {
-                    mapLibreMap?.animateCamera(
-                        CameraUpdateFactory.newLatLngZoom(userLocation, 12.0),
-                    )
-                },
+                onClick = { recenterTick++ },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(16.dp),

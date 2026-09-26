@@ -49,11 +49,12 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.launch
-import org.maplibre.android.geometry.LatLng
+import com.google.android.gms.maps.model.LatLng
 import com.scenescout.app.data.SampleSpotRepository
 import com.scenescout.app.data.Spot
-import com.scenescout.app.data.imagery.SampleImageryRepository
-import com.scenescout.app.data.osm.OsmDiscovery
+import com.scenescout.app.data.imagery.GoogleImageryRepository
+import com.scenescout.app.data.places.ApiKeyStore
+import com.scenescout.app.data.places.GooglePlaces
 import com.scenescout.app.data.planner.PlannerStore
 import com.scenescout.app.ui.screens.AboutScreen
 import com.scenescout.app.ui.screens.CommunityScreen
@@ -117,14 +118,19 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
     SceneScoutTheme {
-        val repo = remember { SampleSpotRepository() }
-        val imageryRepo = remember {
-            SampleImageryRepository(
-                mapsApiKey = BuildConfig.MAPS_API_KEY,
-                mapillaryToken = BuildConfig.MAPILLARY_TOKEN,
-            )
-        }
         val context = androidx.compose.ui.platform.LocalContext.current
+        val repo = remember { SampleSpotRepository() }
+        val apiKeyStore = remember { ApiKeyStore(context) }
+        // Bumped whenever the key is saved/cleared so discovery re-runs.
+        var keyTick by remember { mutableStateOf(0) }
+        // User-pasted key wins; the build-time key (CI secret) is the fallback.
+        val apiKey = remember(keyTick) {
+            apiKeyStore.getKey()?.ifBlank { null } ?: BuildConfig.MAPS_API_KEY
+        }
+        val hasApiKey = GooglePlaces.hasKey(apiKey)
+        val imageryRepo = remember(keyTick) {
+            GoogleImageryRepository(apiKey = { apiKey })
+        }
         val plannerStore = remember { PlannerStore(context) }
         var userLocation by remember { mutableStateOf<LatLng?>(null) }
         var locationAsked by remember { mutableStateOf(false) }
@@ -137,11 +143,9 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
             }
         }
 
-        // Live discovery: static spots + OpenStreetMap places around the GPS.
-        // Re-runs whenever the center moves, plus a manual refresh button —
-        // the app stays connected and keeps pulling fresh spots.
-        // Stable across recompositions so the refresh effect only re-fires
-        // when the location actually changes.
+        // Live discovery: static spots + Google Places around the GPS.
+        // Re-runs whenever the center moves, the key changes, or the user
+        // hits refresh. Cached per ~1km cell for 10 minutes (quota-friendly).
         val center = remember(userLocation) {
             userLocation ?: LatLng(25.7826, -80.1867)
         }
@@ -156,18 +160,26 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                 refreshing = true
                 scope.launch {
                     val static = repo.nearbySpots(c.latitude, c.longitude, 50.0)
-                    val live = try {
-                        OsmDiscovery.discoverSpots(c.latitude, c.longitude, 10.0)
-                    } catch (e: Exception) {
-                        null // offline — keep static spots
+                    val live = if (hasApiKey) {
+                        try {
+                            GooglePlaces.discover(c.latitude, c.longitude, 10.0, apiKey)
+                        } catch (e: Exception) {
+                            null // network/API failure — keep static spots
+                        }
+                    } else {
+                        null // no key yet — static spots + setup prompts
                     }
-                    liveSpots = if (live != null) OsmDiscovery.merge(static, live) else static
+                    liveSpots = if (live != null) {
+                        GooglePlaces.mergeSpots(static, live)
+                    } else {
+                        static
+                    }
                     isLive = live != null
                     refreshing = false
                 }
             }
         }
-        LaunchedEffect(center) { refreshSpots(center) }
+        LaunchedEffect(center, keyTick) { refreshSpots(center) }
         val spots = liveSpots
         val allReviews = remember(spots) { spots.flatMap { repo.reviewsFor(it.id) } }
         var tab by remember { mutableStateOf(Tab.MAP) }
@@ -183,7 +195,13 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
         }
 
         when {
-            showAbout -> AboutScreen(onBack = { showAbout = false })
+            showAbout -> AboutScreen(
+                onBack = { showAbout = false },
+                apiKeyStore = apiKeyStore,
+                hasBuildKey = BuildConfig.MAPS_API_KEY != GooglePlaces.NOT_SET &&
+                    BuildConfig.MAPS_API_KEY.isNotBlank(),
+                onKeyChanged = { keyTick++ },
+            )
             openSpot != null -> SpotDetailScreen(
                 spot = openSpot!!,
                 reviews = repo.reviewsFor(openSpot!!.id),
@@ -250,10 +268,38 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                             Tab.MAP -> MapScreen(
                                 spots = spots,
                                 userLocation = userLocation,
+                                hasApiKey = hasApiKey,
                                 imagery = imageryRepo,
                                 onSpotClick = goToSpot,
+                                onOpenKeySettings = { showAbout = true },
                             )
-                            Tab.DISCOVER -> DiscoverScreen(spots, imageryRepo, goToSpot, searchTag)
+                            Tab.DISCOVER -> DiscoverScreen(
+                                spots, imageryRepo, goToSpot, searchTag,
+                                hasApiKey = hasApiKey,
+                                onServerSearch = { query ->
+                                    if (!refreshing && hasApiKey) {
+                                        refreshing = true
+                                        scope.launch {
+                                            val found = try {
+                                                GooglePlaces.textSearch(
+                                                    query,
+                                                    center.latitude, center.longitude,
+                                                    apiKey,
+                                                )
+                                            } catch (e: Exception) {
+                                                emptyList()
+                                            }
+                                            if (found.isNotEmpty()) {
+                                                val static = repo.nearbySpots(
+                                                    center.latitude, center.longitude, 50.0)
+                                                liveSpots = GooglePlaces.mergeSpots(static, found)
+                                                isLive = true
+                                            }
+                                            refreshing = false
+                                        }
+                                    }
+                                },
+                            )
                             Tab.PLANNER -> PlannerScreen(spots, plannerStore)
                             Tab.SCOUT -> ScoutScreen(spots, scoutQuery, goToSpot)
                             Tab.COMMUNITY -> CommunityScreen(spots, allReviews, goToSpot)

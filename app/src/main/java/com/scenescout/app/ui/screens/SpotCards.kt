@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.scenescout.app.data.ScenicScorer
 import com.scenescout.app.data.Spot
-import com.scenescout.app.data.imagery.SampleImageryRepository
+import com.scenescout.app.data.imagery.GoogleImageryRepository
 import com.scenescout.app.data.imagery.SpotImage
 import com.scenescout.app.ui.theme.GlassCard
 import com.scenescout.app.ui.theme.ShimmerBox
@@ -202,7 +202,7 @@ private fun gradientFor(spot: Spot): Pair<Color, Color> {
 @Composable
 fun SpotList(
     spots: List<Spot>,
-    imagery: SampleImageryRepository?,
+    imagery: GoogleImageryRepository?,
     onSpotClick: (Spot) -> Unit,
     modifier: Modifier = Modifier,
     onTagClick: (String) -> Unit = {},
