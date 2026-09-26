@@ -109,6 +109,12 @@ fun SpotDetailScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // Client one-pager: generate a PDF brief and share it.
+            BriefPdfButton(
+                spot = spot,
+                reviews = reviews,
+                images = images,
+            )
             // Imagery strip — sharpest first, with attribution + AI badge.
             if (images.isNotEmpty()) {
                 Column {
