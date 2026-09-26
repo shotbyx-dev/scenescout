@@ -33,8 +33,9 @@ class SampleImageryRepository(
         if (hasGoogleKey) {
             out += StreetView.panoramaStrip(spot.latitude, spot.longitude, mapsApiKey)
         }
-        // Community uploads always allowed (display + AI).
-        out += spot.images.filter { it.source == ImagerySource.USER_UPLOAD }
+        // Curated photos attached to the spot (OSM wikimedia_commons tags,
+        // user uploads) — all displayable.
+        out += spot.images
         return BestImagery.gallery(out)
     }
 
@@ -58,6 +59,24 @@ class SampleImageryRepository(
         }
         return BestImagery.gallery(base)
     }
+
+    /**
+     * Single best display image for cards/list rows. Async — call from a
+     * coroutine and cache the result in UI state. Skips the network entirely
+     * when the spot already carries a curated photo (OSM tags) or Google
+     * imagery; results are cached per spot id.
+     */
+    suspend fun heroForAsync(spot: Spot): SpotImage? {
+        heroCache[spot.id]?.let { return it }
+        if (heroCache.containsKey(spot.id)) return null
+        val hero = BestImagery.forDisplay(imagesFor(spot))
+            ?: BestImagery.forDisplay(
+                WikimediaClient.searchPhotos(spot.latitude, spot.longitude))
+        heroCache[spot.id] = hero
+        return hero
+    }
+
+    private val heroCache = mutableMapOf<String, SpotImage?>()
 
     /**
      * Live Mapillary search for a spot. Returns null when no token is set.

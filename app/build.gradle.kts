@@ -12,8 +12,8 @@ android {
         applicationId = "com.scenescout.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 7
-        versionName = "0.7.0"
+        versionCode = 8
+        versionName = "0.8.0"
 
         // Google Maps API key: put MAPS_API_KEY=... in local.properties.
         // The map screen shows a graceful placeholder until a real key is set.

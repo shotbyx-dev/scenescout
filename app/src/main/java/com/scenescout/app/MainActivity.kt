@@ -7,7 +7,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Assignment
@@ -15,9 +18,11 @@ import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -28,17 +33,20 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.launch
 import org.maplibre.android.geometry.LatLng
 import com.scenescout.app.data.SampleSpotRepository
 import com.scenescout.app.data.Spot
-import com.scenescout.app.data.imagery.BestImagery
 import com.scenescout.app.data.imagery.SampleImageryRepository
-import com.scenescout.app.data.imagery.SpotImage
+import com.scenescout.app.data.osm.OsmDiscovery
 import com.scenescout.app.data.planner.PlannerStore
 import com.scenescout.app.ui.screens.AboutScreen
 import com.scenescout.app.ui.screens.CommunityScreen
@@ -121,14 +129,38 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
             }
         }
 
-        // Sample data is Miami-based; the real app queries Places API by GPS.
-        val center = userLocation ?: LatLng(25.7826, -80.1867)
-        val spots = remember(center) {
-            repo.nearbySpots(center.latitude, center.longitude, 50.0)
+        // Live discovery: static spots + OpenStreetMap places around the GPS.
+        // Re-runs whenever the center moves, plus a manual refresh button —
+        // the app stays connected and keeps pulling fresh spots.
+        // Stable across recompositions so the refresh effect only re-fires
+        // when the location actually changes.
+        val center = remember(userLocation) {
+            userLocation ?: LatLng(25.7826, -80.1867)
         }
-        val imagesBySpot = remember(spots) {
-            spots.associate { it.id to imageryRepo.imagesFor(it) }
+        var liveSpots by remember {
+            mutableStateOf(repo.nearbySpots(center.latitude, center.longitude, 50.0))
         }
+        var isLive by remember { mutableStateOf(false) }
+        var refreshing by remember { mutableStateOf(false) }
+        val scope = rememberCoroutineScope()
+        val refreshSpots: (LatLng) -> Unit = { c ->
+            if (!refreshing) {
+                refreshing = true
+                scope.launch {
+                    val static = repo.nearbySpots(c.latitude, c.longitude, 50.0)
+                    val live = try {
+                        OsmDiscovery.discoverSpots(c.latitude, c.longitude, 10.0)
+                    } catch (e: Exception) {
+                        null // offline — keep static spots
+                    }
+                    liveSpots = if (live != null) OsmDiscovery.merge(static, live) else static
+                    isLive = live != null
+                    refreshing = false
+                }
+            }
+        }
+        LaunchedEffect(center) { refreshSpots(center) }
+        val spots = liveSpots
         val allReviews = remember(spots) { spots.flatMap { repo.reviewsFor(it.id) } }
         var tab by remember { mutableStateOf(Tab.MAP) }
         var openSpot by remember { mutableStateOf<Spot?>(null) }
@@ -140,9 +172,6 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
         val searchTag: (String) -> Unit = { tag ->
             scoutQuery = tag
             tab = Tab.SCOUT
-        }
-        val heroImageFor: (Spot) -> SpotImage? = { spot ->
-            BestImagery.forDisplay(imagesBySpot[spot.id].orEmpty())
         }
 
         when {
@@ -156,8 +185,29 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
             else -> Scaffold(
                 topBar = {
                     TopAppBar(
-                        title = { Text("SceneScout") },
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("SceneScout")
+                                Spacer(Modifier.width(8.dp))
+                                // Honest connectivity state: live discovery or static fallback.
+                                val (label, color) = if (refreshing) {
+                                    "Updating…" to MaterialTheme.colorScheme.onSurfaceVariant
+                                } else if (isLive) {
+                                    "● Live" to Color(0xFF4CAF50)
+                                } else {
+                                    "● Offline" to MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                                Text(
+                                    label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = color,
+                                )
+                            }
+                        },
                         actions = {
+                            IconButton(onClick = { refreshSpots(center) }) {
+                                Icon(Icons.Filled.Refresh, contentDescription = "Refresh spots")
+                            }
                             IconButton(onClick = { showAbout = true }) {
                                 Icon(Icons.Filled.Info, contentDescription = "About")
                             }
@@ -182,10 +232,10 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                         Tab.MAP -> MapScreen(
                             spots = spots,
                             userLocation = userLocation,
-                            heroImageFor = heroImageFor,
+                            imagery = imageryRepo,
                             onSpotClick = goToSpot,
                         )
-                        Tab.DISCOVER -> DiscoverScreen(spots, heroImageFor, goToSpot, searchTag)
+                        Tab.DISCOVER -> DiscoverScreen(spots, imageryRepo, goToSpot, searchTag)
                         Tab.PLANNER -> PlannerScreen(spots, plannerStore)
                         Tab.SCOUT -> ScoutScreen(spots, scoutQuery, goToSpot)
                         Tab.COMMUNITY -> CommunityScreen(spots, allReviews, goToSpot)

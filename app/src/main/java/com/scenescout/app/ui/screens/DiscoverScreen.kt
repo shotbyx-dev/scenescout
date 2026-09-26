@@ -25,7 +25,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import com.scenescout.app.data.ShootType
 import com.scenescout.app.data.Spot
-import com.scenescout.app.data.imagery.SpotImage
+import com.scenescout.app.data.imagery.SampleImageryRepository
 import com.scenescout.app.ui.brand.BrandWatermark
 
 /** Discover tab: ranked list of spots, filterable by shoot type. */
@@ -33,7 +33,7 @@ import com.scenescout.app.ui.brand.BrandWatermark
 @Composable
 fun DiscoverScreen(
     spots: List<Spot>,
-    heroImageFor: (Spot) -> SpotImage?,
+    imagery: SampleImageryRepository?,
     onSpotClick: (Spot) -> Unit,
     onTagClick: (String) -> Unit,
 ) {
@@ -78,6 +78,6 @@ fun DiscoverScreen(
                 )
             }
         }
-        SpotList(visible, heroImageFor, onSpotClick, onTagClick = onTagClick)
+        SpotList(visible, imagery, onSpotClick, onTagClick = onTagClick)
     }
 }

@@ -38,6 +38,9 @@ object WikimediaClient {
         val keys = pages.keys()
         while (keys.hasNext()) {
             val page = pages.optJSONObject(keys.next()) ?: continue
+            // Skip specimen scans, labels, emblems and SVG diagrams —
+            // the API returns them as "nearby photos" but they aren't.
+            if (isJunkTitle(page.optString("title"))) continue
             val info = page.optJSONArray("imageinfo")?.optJSONObject(0) ?: continue
             val url = info.optString("thumburl").ifBlank { info.optString("url") }
             if (url.isBlank()) continue
@@ -81,4 +84,15 @@ object WikimediaClient {
                 // Connection closed by reader use-block.
             }
         }
+
+    /** Specimen scans, labels and SVG diagrams read as "photos" but aren't. */
+    internal fun isJunkTitle(title: String): Boolean {
+        val t = title.lowercase()
+        return JUNK_MARKERS.any { t.contains(it) }
+    }
+
+    private val JUNK_MARKERS = listOf(
+        "specimen", "casent", "dorsal", "head 1", "profile 1", "label 1",
+        ".svg", "emblem", "logo",
+    )
 }

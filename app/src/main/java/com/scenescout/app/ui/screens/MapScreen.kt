@@ -33,6 +33,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import com.scenescout.app.data.Spot
+import com.scenescout.app.data.imagery.SampleImageryRepository
 import com.scenescout.app.data.imagery.SpotImage
 import org.maplibre.android.MapLibre
 import org.maplibre.android.annotations.MarkerOptions
@@ -54,7 +55,7 @@ private const val DARK_STYLE_URL =
 fun MapScreen(
     spots: List<Spot>,
     userLocation: LatLng?,
-    heroImageFor: (Spot) -> SpotImage?,
+    imagery: SampleImageryRepository?,
     onSpotClick: (Spot) -> Unit,
 ) {
     val context = LocalContext.current
@@ -155,9 +156,13 @@ fun MapScreen(
                 onClick = { onSpotClick(spot) },
             ) {
                 Column(Modifier.padding(12.dp)) {
-                    heroImageFor(spot)?.let { hero ->
+                    var hero by remember(spot.id) { mutableStateOf<SpotImage?>(null) }
+                    LaunchedEffect(spot.id) {
+                        hero = imagery?.heroForAsync(spot)
+                    }
+                    hero?.let { heroImage ->
                         AsyncImage(
-                            model = hero.url,
+                            model = heroImage.url,
                             contentDescription = "Preview of ${spot.name}",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
@@ -167,7 +172,7 @@ fun MapScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            hero.credit ?: hero.source.attribution,
+                            heroImage.credit ?: heroImage.source.attribution,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

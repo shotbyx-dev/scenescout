@@ -24,6 +24,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.scenescout.app.data.ScenicScorer
 import com.scenescout.app.data.Spot
+import com.scenescout.app.data.imagery.SampleImageryRepository
 import com.scenescout.app.data.imagery.SpotImage
 
 /** Shared spot card used by Discover + Community tabs. */
@@ -193,7 +199,7 @@ private fun gradientFor(spot: Spot): Pair<Color, Color> {
 @Composable
 fun SpotList(
     spots: List<Spot>,
-    heroImageFor: (Spot) -> SpotImage?,
+    imagery: SampleImageryRepository?,
     onSpotClick: (Spot) -> Unit,
     modifier: Modifier = Modifier,
     onTagClick: (String) -> Unit = {},
@@ -204,8 +210,14 @@ fun SpotList(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(spots, key = { it.id }) { spot ->
+            // Hero photos load async per card and are cached in the repo,
+            // so scrolling stays smooth and each spot fetches only once.
+            var hero by remember(spot.id) { mutableStateOf<SpotImage?>(null) }
+            LaunchedEffect(spot.id) {
+                hero = imagery?.heroForAsync(spot)
+            }
             SpotCard(
-                spot, heroImageFor(spot),
+                spot, hero,
                 onClick = { onSpotClick(spot) },
                 onTagClick = onTagClick,
             )
@@ -230,4 +242,4 @@ fun SpotList(
     spots: List<Spot>,
     onSpotClick: (Spot) -> Unit,
     modifier: Modifier = Modifier,
-) = SpotList(spots, { null }, onSpotClick, modifier)
+) = SpotList(spots, null, onSpotClick, modifier)
