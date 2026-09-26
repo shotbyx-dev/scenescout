@@ -46,8 +46,11 @@ class SampleImageryRepository(
     suspend fun imagesForAsync(spot: Spot): List<SpotImage> {
         val base = imagesFor(spot).toMutableList()
         // Wikimedia photos are real and location-relevant — put them first
-        // when there's nothing sharper from Google.
+        // when there's nothing sharper from Google. Most-depicting first.
         val wiki = WikimediaClient.searchPhotos(spot.latitude, spot.longitude)
+            .sortedByDescending {
+                WikimediaClient.relevance(it.title.orEmpty(), spot.name, spot.tags)
+            }
         if (wiki.isNotEmpty() && base.none {
                 it.source == ImagerySource.GOOGLE_STREET_VIEW ||
                     it.source == ImagerySource.GOOGLE_PLACE_PHOTO
@@ -64,14 +67,16 @@ class SampleImageryRepository(
      * Single best display image for cards/list rows. Async — call from a
      * coroutine and cache the result in UI state. Skips the network entirely
      * when the spot already carries a curated photo (OSM tags) or Google
-     * imagery; results are cached per spot id.
+     * imagery; results are cached per spot id. The Commons fallback only
+     * returns photos that plausibly depict the place — otherwise null, and
+     * the card shows its branded gradient instead of a random nearby photo.
      */
     suspend fun heroForAsync(spot: Spot): SpotImage? {
         heroCache[spot.id]?.let { return it }
         if (heroCache.containsKey(spot.id)) return null
         val hero = BestImagery.forDisplay(imagesFor(spot))
-            ?: BestImagery.forDisplay(
-                WikimediaClient.searchPhotos(spot.latitude, spot.longitude))
+            ?: WikimediaClient.searchHeroPhoto(
+                spot.latitude, spot.longitude, spot.name, spot.tags)
         heroCache[spot.id] = hero
         return hero
     }

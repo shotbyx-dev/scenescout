@@ -5,23 +5,32 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-// Cinematic dark theme: deep blacks, warm amber accent (golden hour).
+// Shotbyx brand: chrome-on-black with the logo's red glow as the primary
+// accent, golden-hour amber kept as the secondary for scores and sun.
+private val ShotRed = Color(0xFFFF3D2E)
+private val ShotRedDeep = Color(0xFF8F1D14)
 private val Amber = Color(0xFFFFB300)
-private val AmberDim = Color(0xFF8A6100)
-private val Ink = Color(0xFF0B0B0E)
-private val SurfaceDark = Color(0xFF141419)
-private val TextSoft = Color(0xFFE8E4DA)
+private val Chrome = Color(0xFFC9CCD6)
+private val Ink = Color(0xFF08080A)
+private val SurfaceDark = Color(0xFF101014)
+private val TextSoft = Color(0xFFF2EFE8)
 
 private val SceneScoutColors = darkColorScheme(
-    primary = Amber,
-    onPrimary = Color.Black,
-    secondary = AmberDim,
+    primary = ShotRed,
+    onPrimary = Color.White,
+    primaryContainer = ShotRedDeep,
+    onPrimaryContainer = Color.White,
+    secondary = Amber,
+    onSecondary = Color.Black,
+    tertiary = Chrome,
     background = Ink,
     onBackground = TextSoft,
     surface = SurfaceDark,
     onSurface = TextSoft,
-    surfaceVariant = Color(0xFF1E1E26),
-    onSurfaceVariant = Color(0xFFB9B3A4),
+    surfaceVariant = Color(0xFF1B1B22),
+    onSurfaceVariant = Color(0xFFB9B3A8),
+    errorContainer = Color(0xFF3D1110),
+    onErrorContainer = Color(0xFFFFB4AB),
 )
 
 @Composable

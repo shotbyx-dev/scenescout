@@ -10,11 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import com.scenescout.app.data.Spot
 import com.scenescout.app.data.SpotReview
 import com.scenescout.app.ui.brand.BrandWatermark
+import com.scenescout.app.ui.theme.GlassCard
+import com.scenescout.app.ui.theme.StaggeredItem
 
 /** Community tab: latest reviews with shoot notes ("nobody bothered us", best light). */
 @Composable
@@ -53,14 +53,13 @@ fun CommunityScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            items(reviews) { review ->
+            itemsIndexed(reviews) { index, review ->
                 val spot = byId[review.spotId]
-                Card(
-                    onClick = { spot?.let(onSpotClick) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface),
-                ) {
+                StaggeredItem(index = index) {
+                    GlassCard(
+                        onClick = { spot?.let(onSpotClick) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
                     Column(Modifier.padding(16.dp)) {
                         Row(
                             Modifier.fillMaxWidth(),
@@ -93,6 +92,7 @@ fun CommunityScreen(
                         Text("— ${review.author}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     }
                 }
             }

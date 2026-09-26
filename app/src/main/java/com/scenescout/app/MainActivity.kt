@@ -6,6 +6,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -56,6 +62,7 @@ import com.scenescout.app.ui.screens.MapScreen
 import com.scenescout.app.ui.screens.PlannerScreen
 import com.scenescout.app.ui.screens.ScoutScreen
 import com.scenescout.app.ui.screens.SpotDetailScreen
+import com.scenescout.app.ui.theme.BrandGlowBackground
 import com.scenescout.app.ui.theme.SceneScoutTheme
 
 private enum class Tab(val label: String, val icon: ImageVector) {
@@ -229,17 +236,28 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                 },
             ) { inner ->
                 Box(Modifier.padding(inner)) {
-                    when (tab) {
-                        Tab.MAP -> MapScreen(
-                            spots = spots,
-                            userLocation = userLocation,
-                            imagery = imageryRepo,
-                            onSpotClick = goToSpot,
-                        )
-                        Tab.DISCOVER -> DiscoverScreen(spots, imageryRepo, goToSpot, searchTag)
-                        Tab.PLANNER -> PlannerScreen(spots, plannerStore)
-                        Tab.SCOUT -> ScoutScreen(spots, scoutQuery, goToSpot)
-                        Tab.COMMUNITY -> CommunityScreen(spots, allReviews, goToSpot)
+                    BrandGlowBackground()
+                    AnimatedContent(
+                        targetState = tab,
+                        transitionSpec = {
+                            (fadeIn(tween(280)) +
+                                slideInHorizontally(tween(280)) { it / 8 }) togetherWith
+                                fadeOut(tween(180))
+                        },
+                        label = "tabTransition",
+                    ) { current ->
+                        when (current) {
+                            Tab.MAP -> MapScreen(
+                                spots = spots,
+                                userLocation = userLocation,
+                                imagery = imageryRepo,
+                                onSpotClick = goToSpot,
+                            )
+                            Tab.DISCOVER -> DiscoverScreen(spots, imageryRepo, goToSpot, searchTag)
+                            Tab.PLANNER -> PlannerScreen(spots, plannerStore)
+                            Tab.SCOUT -> ScoutScreen(spots, scoutQuery, goToSpot)
+                            Tab.COMMUNITY -> CommunityScreen(spots, allReviews, goToSpot)
+                        }
                     }
                 }
             }

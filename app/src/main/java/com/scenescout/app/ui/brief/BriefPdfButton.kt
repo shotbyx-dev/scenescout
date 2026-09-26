@@ -56,7 +56,7 @@ fun BriefPdfButton(
                     val score = ScenicScorer.scoreSpot(spot)
                     val sun = SunTimes.forDate(
                         spot.latitude, spot.longitude,
-                        LocalDate.now(), ZoneId.of("America/New_York"),
+                        LocalDate.now(), ZoneId.systemDefault(),
                     )
                     val brief = SpotBriefBuilder.build(spot, score, sun, reviews)
                     val heroUrl = BestImagery.forDisplay(images)?.url

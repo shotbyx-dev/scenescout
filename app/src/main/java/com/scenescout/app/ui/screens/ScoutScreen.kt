@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -37,6 +35,8 @@ import com.scenescout.app.data.ScenicScorer
 import com.scenescout.app.data.Spot
 import com.scenescout.app.data.VibeMatcher
 import com.scenescout.app.ui.brand.BrandWatermark
+import com.scenescout.app.ui.theme.GlassCard
+import com.scenescout.app.ui.theme.StaggeredItem
 
 /**
  * AI Scout tab: two ways to find a location.
@@ -142,16 +142,19 @@ private fun VibeSearch(
         if (results.isEmpty()) {
             Text("No matches yet — try words like neon, beach, gritty, truck, abandoned.")
         } else {
-            results.forEach { (spot, match) ->
-                ScoutResultCard(spot, match, reasons = emptyList()) { onSpotClick(spot) }
+            results.forEachIndexed { index, (spot, match) ->
+                StaggeredItem(index = index) {
+                    ScoutResultCard(spot, match, reasons = emptyList()) { onSpotClick(spot) }
+                }
                 Spacer(Modifier.height(8.dp))
             }
         }
     } else {
         Text(
-            "Street View AI analysis plugs in here: the app pulls imagery " +
-                "around you, scores each frame for cinematic quality, " +
-                "and pins the winners on your map.",
+            "Vision scoring is on the roadmap — Mapillary street imagery " +
+                "and your own uploads will feed the cinematic scorer. " +
+                "Today, Scout ranks spots with the on-device vibe and " +
+                "song-mood matchers.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -194,9 +197,11 @@ private fun SongSearch(
                     "rich, heartbreak, wild, or describe the story.",
             )
         } else {
-            results.forEach { match ->
-                ScoutResultCard(match.spot, match.score, match.reasons) {
-                    onSpotClick(match.spot)
+            results.forEachIndexed { index, match ->
+                StaggeredItem(index = index) {
+                    ScoutResultCard(match.spot, match.score, match.reasons) {
+                        onSpotClick(match.spot)
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -213,12 +218,11 @@ private fun ScoutResultCard(
     onClick: () -> Unit,
 ) {
     val score = ScenicScorer.scoreSpot(spot)
-    Card(
+    GlassCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
-        Column(Modifier.padding(16.dp)) {
+            Column(Modifier.padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(spot.name, style = MaterialTheme.typography.titleMedium)
                 Text(
@@ -228,7 +232,7 @@ private fun ScoutResultCard(
             }
             Spacer(Modifier.height(4.dp))
             LinearProgressIndicator(
-                progress = { score.overall / 100f },
+                progress = { match / 100f },
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(4.dp))

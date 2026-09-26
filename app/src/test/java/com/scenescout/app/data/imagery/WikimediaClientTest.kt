@@ -47,6 +47,29 @@ class WikimediaClientTest {
     }
 
     @Test
+    fun `parse records the file title for relevance scoring`() {
+        val images = WikimediaClient.parse(sampleJson)
+        assertEquals("File:Beach.jpg", images.single().title)
+    }
+
+    @Test
+    fun `relevance rewards name words and kind tags`() {
+        assertTrue(WikimediaClient.relevance(
+            "File:Wyland.jpg", "Wyland Wall #99", listOf("mural")) > 0)
+        assertTrue(WikimediaClient.relevance(
+            "File:Sunset pier.jpg", "Unnamed pier", listOf("pier", "water")) > 0)
+        // A random nearby photo must never become the hero.
+        assertEquals(0, WikimediaClient.relevance(
+            "File:CVSPharmacyinFL.jpg", "ColorPlay", listOf("mural", "urban")))
+        assertEquals(0, WikimediaClient.relevance(
+            "File:Davie, Florida (3314175500).jpg",
+            "City of Plantation Historical Museum", listOf("museum")))
+        // Stopwords don't count as matches.
+        assertEquals(0, WikimediaClient.relevance(
+            "File:The City.jpg", "Unnamed park", listOf("park", "green")))
+    }
+
+    @Test
     fun `searchUrl hits the commons geosearch api`() {
         val url = WikimediaClient.searchUrl(26.1, -80.1)
         assertTrue(url.startsWith("https://commons.wikimedia.org/w/api.php"))

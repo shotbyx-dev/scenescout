@@ -28,6 +28,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import android.content.Intent
+import com.scenescout.app.ui.theme.GlassCard
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,11 +70,11 @@ fun SpotDetailScreen(
         images = imagery.imagesForAsync(spot)
         photosLoading = false
     }
-    // Sample coordinates are Miami; real app uses the spot's city timezone.
+    // Golden hour uses the device timezone — correct wherever the scout is.
     val sun = remember(spot) {
         SunTimes.forDate(
             spot.latitude, spot.longitude,
-            LocalDate.now(), ZoneId.of("America/New_York"),
+            LocalDate.now(), ZoneId.systemDefault(),
         )
     }
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -141,6 +142,14 @@ fun SpotDetailScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                if (!photosLoading && images.isEmpty()) {
+                    Text(
+                        "No public photos found near this spot yet — " +
+                            "scout it yourself and be the first to shoot it.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 if (images.isNotEmpty()) {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(images, key = { it.url }) { image ->
@@ -186,8 +195,7 @@ fun SpotDetailScreen(
                 }
             }
             // Score breakdown
-            Card(colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface)) {
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -204,8 +212,7 @@ fun SpotDetailScreen(
                 }
             }
             // Golden hour
-            Card(colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface)) {
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
                     Text("Best light today", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(8.dp))
@@ -222,8 +229,7 @@ fun SpotDetailScreen(
                 }
             }
             // Permit
-            Card(colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface)) {
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
                     Text("Permits", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(4.dp))
@@ -245,8 +251,7 @@ fun SpotDetailScreen(
             Text("Shoot reports (${reviews.size})",
                 style = MaterialTheme.typography.titleMedium)
             reviews.forEach { review ->
-                Card(colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface)) {
+                GlassCard(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             repeat(review.stars) {

@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Star
@@ -42,6 +42,9 @@ import com.scenescout.app.data.ScenicScorer
 import com.scenescout.app.data.Spot
 import com.scenescout.app.data.imagery.SampleImageryRepository
 import com.scenescout.app.data.imagery.SpotImage
+import com.scenescout.app.ui.theme.GlassCard
+import com.scenescout.app.ui.theme.ShimmerBox
+import com.scenescout.app.ui.theme.StaggeredItem
 
 /** Shared spot card used by Discover + Community tabs. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,12 +57,11 @@ fun SpotCard(
     onTagClick: (String) -> Unit = {},
 ) {
     val score = ScenicScorer.scoreSpot(spot)
-    Card(
+    var photoLoaded by remember(spot.id, heroImage?.url) { mutableStateOf(false) }
+    GlassCard(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
-        Column {
             // Cinematic image header — real imagery when available, otherwise a
             // vibe-tinted gradient so the list never looks empty.
             Box(
@@ -68,11 +70,13 @@ fun SpotCard(
                     .height(150.dp),
             ) {
                 if (heroImage != null) {
+                    if (!photoLoaded) ShimmerBox(Modifier.fillMaxSize())
                     AsyncImage(
                         model = heroImage.url,
                         contentDescription = "Preview of ${spot.name}",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
+                        onSuccess = { photoLoaded = true },
                     )
                 } else {
                     val (top, bottom) = gradientFor(spot)
@@ -139,14 +143,13 @@ fun SpotCard(
                 }
                 if (heroImage != null) {
                     Text(
-                        heroImage.source.attribution,
+                        heroImage.credit ?: heroImage.source.attribution,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 6.dp),
                     )
                 }
             }
-        }
     }
 }
 
@@ -209,18 +212,20 @@ fun SpotList(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        items(spots, key = { it.id }) { spot ->
+        itemsIndexed(spots, key = { _, s -> s.id }) { index, spot ->
             // Hero photos load async per card and are cached in the repo,
             // so scrolling stays smooth and each spot fetches only once.
             var hero by remember(spot.id) { mutableStateOf<SpotImage?>(null) }
             LaunchedEffect(spot.id) {
                 hero = imagery?.heroForAsync(spot)
             }
-            SpotCard(
-                spot, hero,
-                onClick = { onSpotClick(spot) },
-                onTagClick = onTagClick,
-            )
+            StaggeredItem(index = index) {
+                SpotCard(
+                    spot, hero,
+                    onClick = { onSpotClick(spot) },
+                    onTagClick = onTagClick,
+                )
+            }
         }
         item {
             Text(

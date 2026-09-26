@@ -62,9 +62,49 @@ object WikimediaClient {
                 source = ImagerySource.WIKIMEDIA_COMMONS,
                 widthPx = 800,
                 credit = credit,
+                title = page.optString("title").takeIf { it.isNotBlank() },
             )
         }
         return out
+    }
+
+    private val NAME_STOPWORDS = setOf(
+        "the", "of", "and", "a", "an", "in", "on", "at", "de", "la", "el",
+        "unnamed", "city",
+    )
+
+    /**
+     * How likely a Commons file title actually depicts this spot.
+     * Significant words from the place name weigh most; kind tags
+     * (mural, pier, beach, …) add a little. A CVS-pharmacy photo near a
+     * mural scores 0 and is never used as the card hero.
+     */
+    internal fun relevance(title: String, spotName: String, tags: List<String>): Int {
+        val t = title.lowercase()
+        var score = 0
+        spotName.lowercase().split(Regex("\\W+"))
+            .filter { it.length > 3 && it !in NAME_STOPWORDS }
+            .forEach { w -> if (w in t) score += 3 }
+        tags.map { it.lowercase() }
+            .filter { it.length > 2 }
+            .forEach { w -> if (w in t) score += 1 }
+        return score
+    }
+
+    /**
+     * Best Commons photo that plausibly depicts the spot, or null.
+     * Heroes must depict the place — an irrelevant nearby photo is worse
+     * than the branded gradient, so zero-relevance results are dropped.
+     */
+    suspend fun searchHeroPhoto(
+        latitude: Double,
+        longitude: Double,
+        spotName: String,
+        tags: List<String>,
+    ): SpotImage? = withContext(Dispatchers.IO) {
+        val photos = searchPhotos(latitude, longitude)
+        photos.filter { relevance(it.title.orEmpty(), spotName, tags) > 0 }
+            .maxByOrNull { relevance(it.title.orEmpty(), spotName, tags) }
     }
 
     suspend fun searchPhotos(latitude: Double, longitude: Double): List<SpotImage> =

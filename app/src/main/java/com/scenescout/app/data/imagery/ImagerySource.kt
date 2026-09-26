@@ -53,4 +53,6 @@ data class SpotImage(
     val compassDeg: Double? = null,
     /** Per-photo credit (e.g. the Wikimedia author); falls back to source.attribution. */
     val credit: String? = null,
+    /** Commons file title, when known — used to score photo relevance. */
+    val title: String? = null,
 )

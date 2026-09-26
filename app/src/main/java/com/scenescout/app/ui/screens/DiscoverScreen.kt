@@ -8,8 +8,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,8 +42,14 @@ fun DiscoverScreen(
     onTagClick: (String) -> Unit,
 ) {
     var filter by remember { mutableStateOf<ShootType?>(null) }
-    val visible = remember(spots, filter) {
-        if (filter == null) spots else spots.filter { it.bestFor.contains(filter) }
+    var query by remember { mutableStateOf("") }
+    val visible = remember(spots, filter, query) {
+        spots.filter { s ->
+            (filter == null || s.bestFor.contains(filter)) &&
+                (query.isBlank() ||
+                    (s.name + " " + s.description + " " + s.tags.joinToString(" "))
+                        .contains(query, ignoreCase = true))
+        }
     }
     Column(Modifier.fillMaxSize()) {
         // Cinematic header with the Shotbyx watermark behind it.
@@ -65,6 +75,17 @@ fun DiscoverScreen(
                 )
             }
         }
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            placeholder = { Text("Search spots by name, tag, vibe…") },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
+            singleLine = true,
+        )
         Spacer(Modifier.height(8.dp))
         FlowRow(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp),

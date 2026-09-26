@@ -106,20 +106,27 @@ class OsmDiscoveryTest {
         assertEquals(listOf("s1", "o2"), merged.map { it.id })
     }
 
-    @Test fun buildQuery_containsAroundAndTimeout() {
-        val q = OsmDiscovery.buildQuery(26.1, -80.2, 10000, parksOnly = false)
-        assertTrue(q.contains("around:10000,26.1,-80.2"))
-        assertTrue(q.contains("[timeout:25]"))
-        assertTrue(q.contains("artwork"))
-        assertFalse(q.contains("\"park\""))
-    }
-
-    @Test fun buildQuery_parksOnlyIsSeparateSmallQuery() {
-        val q = OsmDiscovery.buildQuery(26.1, -80.2, 10000, parksOnly = true)
-        assertTrue(q.contains("leisure\"=\"park\"") || q.contains("[\"leisure\"=\"park\"]") ||
-            q.contains("\"leisure\"=\"park\""))
-        assertFalse(q.contains("artwork"))
-        assertTrue(q.endsWith("out center tags 12;"))
+    @Test fun buildQueries_useExactMatchesNotRegex() {
+        val lat = 26.1; val lng = -80.2; val r = 10000
+        val culture = OsmDiscovery.buildCultureQuery(lat, lng, r)
+        val land = OsmDiscovery.buildLandQuery(lat, lng, r)
+        val parks = OsmDiscovery.buildParksQuery(lat, lng, r)
+        for (q in listOf(culture, land, parks)) {
+            assertTrue(q.contains("around:10000,26.1,-80.2"))
+            assertTrue(q.contains("[timeout:25]"))
+            // Regex scans timed out on-device; exact matches must be used.
+            assertFalse(q.contains("~\"^"))
+        }
+        assertTrue(culture.contains("node[\"tourism\"=\"artwork\"]"))
+        assertTrue(culture.contains("way[\"man_made\"=\"pier\"]"))
+        assertTrue(culture.contains("node[\"amenity\"=\"theatre\"]"))
+        assertFalse(culture.contains("park"))
+        assertTrue(land.contains("node[\"natural\"=\"beach\"]"))
+        assertTrue(land.contains("node[\"building\"=\"church\"]"))
+        assertTrue(land.contains("node[\"historic\"]"))
+        assertTrue(parks.contains("node[\"leisure\"=\"park\"]"))
+        assertFalse(parks.contains("artwork"))
+        assertTrue(parks.endsWith("out center tags 12;"))
     }
 
     @Test fun isNoise_dropsUnnamedParksButKeepsNamed() {

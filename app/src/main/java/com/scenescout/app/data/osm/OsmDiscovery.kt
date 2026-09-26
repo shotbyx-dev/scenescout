@@ -9,6 +9,9 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import kotlin.math.pow
@@ -29,13 +32,14 @@ import kotlin.math.sqrt
  */
 object OsmDiscovery {
 
+    // overpass-api.de first: healthy and current. kumi is the fallback —
+    // it has been observed extremely slow and months behind on data.
     private val ENDPOINTS = listOf(
-        "https://overpass.kumi.systems/api/interpreter",
         "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
     )
     private const val UA = "SceneScout/1.0 (shotbyx-dev; videographer location app)"
     private const val CACHE_TTL_MS = 10 * 60 * 1000L
-    private const val MAX_RESULTS = 60
     private const val MAX_PARKS = 12
 
     data class OsmPlace(
@@ -118,34 +122,53 @@ object OsmDiscovery {
     }
 
     /**
-     * Builds the Overpass QL query. Parks get their own smaller query so 60
-     * neighborhood parks can't crowd out the murals and viewpoints.
+     * Three small exact-match queries instead of one giant regex query.
+     * Verified live: exact tag matches answer in ~2-12s while the old
+     * regex scans over a 10km radius routinely timed out, leaving the app
+     * with zero live spots. They run in parallel; each failing query only
+     * loses its own slice, never the whole result.
      */
-    fun buildQuery(lat: Double, lng: Double, radiusM: Int, parksOnly: Boolean): String {
+    fun buildCultureQuery(lat: Double, lng: Double, radiusM: Int): String {
         val around = "(around:$radiusM,$lat,$lng)"
-        val selectors = if (parksOnly) {
-            listOf(
-                """node["leisure"="park"]$around""",
-                """way["leisure"="park"]$around""",
-            )
-        } else {
-            listOf(
-                """node["tourism"~"^(attraction|viewpoint|museum|gallery|artwork)$"]$around""",
-                """node["historic"]$around""",
-                """node["leisure"~"^(beach_resort|marina)$"]$around""",
-                """node["natural"~"^(beach|peak)$"]$around""",
-                """node["man_made"="pier"]$around""",
-                """node["building"~"^(church|cathedral|chapel)$"]$around""",
-                """node["amenity"="theatre"]$around""",
-                """way["tourism"~"^(attraction|viewpoint|museum|gallery|artwork)$"]$around""",
-                """way["historic"]$around""",
-                """way["leisure"~"^(beach_resort|marina)$"]$around""",
-                """way["man_made"="pier"]$around""",
-                """way["building"~"^(church|cathedral|chapel)$"]$around""",
-            )
+        val s = mutableListOf<String>()
+        for (v in listOf("artwork", "viewpoint", "museum", "attraction")) {
+            s += "node[\"tourism\"=\"$v\"]$around"
+            s += "way[\"tourism\"=\"$v\"]$around"
         }
-        val limit = if (parksOnly) MAX_PARKS else MAX_RESULTS
-        return "[out:json][timeout:25];(${selectors.joinToString(";")};);out center tags $limit;"
+        s += "node[\"tourism\"=\"gallery\"]$around"
+        s += "node[\"amenity\"=\"theatre\"]$around"
+        s += "node[\"man_made\"=\"pier\"]$around"
+        s += "way[\"man_made\"=\"pier\"]$around"
+        return "[out:json][timeout:25];(${s.joinToString(";")};);out center tags 40;"
+    }
+
+    fun buildLandQuery(lat: Double, lng: Double, radiusM: Int): String {
+        val around = "(around:$radiusM,$lat,$lng)"
+        val s = mutableListOf(
+            "node[\"historic\"]$around",
+            "way[\"historic\"]$around",
+        )
+        for ((k, v) in listOf(
+            "leisure" to "beach_resort", "natural" to "beach",
+            "leisure" to "marina", "natural" to "peak",
+        )) {
+            s += "node[\"$k\"=\"$v\"]$around"
+            s += "way[\"$k\"=\"$v\"]$around"
+        }
+        for (b in listOf("church", "cathedral", "chapel")) {
+            s += "node[\"building\"=\"$b\"]$around"
+            s += "way[\"building\"=\"$b\"]$around"
+        }
+        return "[out:json][timeout:25];(${s.joinToString(";")};);out center tags 40;"
+    }
+
+    /** Parks get their own small query so they can't crowd out murals. */
+    fun buildParksQuery(lat: Double, lng: Double, radiusM: Int): String {
+        val around = "(around:$radiusM,$lat,$lng)"
+        return "[out:json][timeout:25];(" +
+            "node[\"leisure\"=\"park\"]$around;" +
+            "way[\"leisure\"=\"park\"]$around;" +
+            ");out center tags $MAX_PARKS;"
     }
 
     /** Parses an Overpass JSON response. Pure — unit-testable. */
@@ -281,8 +304,10 @@ object OsmDiscovery {
     /**
      * Full live pipeline: discover places, resolve their curated photos,
      * return Spots ranked most-cinematic-first. Cached per ~1km cell for
-     * 10 minutes. Throws on network failure so callers can fall back to
-     * static data.
+     * 10 minutes. The three queries run in parallel and each is allowed to
+     * fail on its own — one slow endpoint only loses its slice, never the
+     * whole result. Throws only when every query fails, so callers can fall
+     * back to static data.
      */
     suspend fun discoverSpots(
         lat: Double, lng: Double, radiusKm: Double,
@@ -293,8 +318,20 @@ object OsmDiscovery {
             if (now - ts < CACHE_TTL_MS) return@withContext spots
         }
         val radiusM = (radiusKm * 1000).toInt()
-        val raw = queryOverpass(buildQuery(lat, lng, radiusM, parksOnly = false)) +
-            queryOverpass(buildQuery(lat, lng, radiusM, parksOnly = true))
+        val queries = listOf(
+            buildCultureQuery(lat, lng, radiusM),
+            buildLandQuery(lat, lng, radiusM),
+            buildParksQuery(lat, lng, radiusM),
+        )
+        val settled = coroutineScope {
+            queries.map { q -> async { runCatching { queryOverpass(q) } } }
+                .awaitAll()
+        }
+        if (settled.all { it.isFailure }) {
+            throw settled.firstNotNullOf { it.exceptionOrNull() }
+                ?: Exception("Overpass queries failed")
+        }
+        val raw = settled.mapNotNull { it.getOrNull() }.flatten()
         val places = dedupePlaces(raw.filter { !isNoise(it) })
             .sortedWith(compareBy(
                 { kindFor(it.tags)!!.priority },
@@ -347,7 +384,7 @@ object OsmDiscovery {
             conn.setRequestProperty(
                 "Content-Type", "application/x-www-form-urlencoded")
             conn.connectTimeout = 10000
-            conn.readTimeout = 30000
+            conn.readTimeout = 40000
             val body = "data=" + URLEncoder.encode(query, "UTF-8")
             conn.outputStream.bufferedWriter().use { it.write(body) }
             if (conn.responseCode != 200) throw Exception("HTTP ${conn.responseCode}")

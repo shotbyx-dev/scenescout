@@ -21,8 +21,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -51,6 +49,7 @@ import com.scenescout.app.data.planner.ScheduleBlock
 import com.scenescout.app.data.planner.ShootProject
 import com.scenescout.app.data.planner.ShotItem
 import com.scenescout.app.ui.brand.BrandWatermark
+import com.scenescout.app.ui.theme.GlassCard
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -141,7 +140,7 @@ private fun TreatmentSection(
     project: ShootProject,
     onChange: (String) -> Unit,
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Treatment", style = MaterialTheme.typography.titleMedium)
             if (project.client.isNotBlank() || project.shootDate.isNotBlank()) {
@@ -175,13 +174,17 @@ private fun ShotListSection(
     var location by remember(project.id) { mutableStateOf("") }
     var lens by remember(project.id) { mutableStateOf("") }
     var locMenu by remember { mutableStateOf(false) }
+    var customLoc by remember(project.id) { mutableStateOf(false) }
 
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Shot list", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f))
-                TextButton(onClick = { adding = !adding }) {
+                TextButton(onClick = {
+                    adding = !adding
+                    if (!adding) customLoc = false
+                }) {
                     Text(if (adding) "Cancel" else "+ Add shot")
                 }
             }
@@ -234,9 +237,17 @@ private fun ShotListSection(
                         }
                         DropdownMenuItem(
                             text = { Text("Custom…") },
-                            onClick = { locMenu = false },
+                            onClick = { locMenu = false; customLoc = true },
                         )
                     }
+                }
+                if (customLoc) {
+                    OutlinedTextField(
+                        value = location, onValueChange = { location = it },
+                        label = { Text("Custom location") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
                 }
                 OutlinedTextField(value = lens, onValueChange = { lens = it },
                     label = { Text("Lens / notes (optional)") },
@@ -251,7 +262,7 @@ private fun ShotListSection(
                                     lens = lens.trim(),
                                 ))
                             }
-                            desc = ""; location = ""; lens = ""; adding = false
+                            desc = ""; location = ""; lens = ""; customLoc = false; adding = false
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -270,9 +281,9 @@ private fun ScheduleSection(
     var adding by remember(project.id) { mutableStateOf(false) }
     var time by remember(project.id) { mutableStateOf("") }
     var title by remember(project.id) { mutableStateOf("") }
-    val zone = ZoneId.of("America/New_York")
+    val zone = ZoneId.systemDefault()
 
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Day schedule", style = MaterialTheme.typography.titleMedium,
@@ -354,7 +365,7 @@ private fun GearSection(
     var name by remember(project.id) { mutableStateOf("") }
     val packed = project.gear.count { it.packed }
 
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Gear checklist", style = MaterialTheme.typography.titleMedium,
