@@ -34,6 +34,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import com.scenescout.app.data.Spot
 import com.scenescout.app.data.imagery.SpotImage
+import org.maplibre.android.MapLibre
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -62,7 +63,11 @@ fun MapScreen(
     var mapLibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
     val markerToSpot = remember { mutableMapOf<Long, Spot>() }
 
-    val mapView = remember { MapView(context).apply { onCreate(null) } }
+    val mapView = remember {
+        // Required before ANY MapView is created, or MapLibre throws.
+        MapLibre.getInstance(context)
+        MapView(context).apply { onCreate(null) }
+    }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -162,7 +167,7 @@ fun MapScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            hero.source.attribution,
+                            hero.credit ?: hero.source.attribution,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
