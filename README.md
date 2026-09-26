@@ -32,11 +32,25 @@ timing, and permit guidance.
 | Community spots, stars, notes | Firebase Firestore (free tier to start) |
 | Permits | Curated film-office table → deep links; no central US API exists |
 
+## Imagery strategy (best quality, legally clean)
+
+| Job | Source | Why |
+|---|---|---|
+| Show the user what a spot looks like | Google Street View stills / Place Photos | Sharpest, most current — display is allowed with attribution |
+| AI scenic scoring | Mapillary (CC BY-SA) + user uploads | Google ToS **forbids** feeding their imagery to AI models |
+
+`data/imagery/` holds the split: `StreetView` (display-only URL builders),
+`MapillaryClient` (API v4 search + sharpest-thumbnail picker),
+`BestImagery` (picks sharpest display image; AI only ever sees Mapillary/uploads),
+`ImageryRepository` (one call per spot). Every image carries its attribution,
+shown under it in the app.
+
 ## Build
 
 ```bash
-# Maps key (optional for v0.1 — app shows a placeholder without it)
-echo 'MAPS_API_KEY=your_key_here' >> local.properties
+# API keys (both optional — the app degrades gracefully without them)
+echo 'MAPS_API_KEY=your_google_key' >> local.properties
+echo 'MAPILLARY_TOKEN=your_mapillary_token' >> local.properties  # free at mapillary.com/dashboard
 
 ./gradlew testDebugUnitTest   # unit tests
 ./gradlew assembleDebug        # APK at app/build/outputs/apk/debug/

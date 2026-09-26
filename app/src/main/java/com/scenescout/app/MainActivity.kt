@@ -23,6 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.scenescout.app.data.SampleSpotRepository
 import com.scenescout.app.data.Spot
+import com.scenescout.app.data.imagery.BestImagery
+import com.scenescout.app.data.imagery.SampleImageryRepository
+import com.scenescout.app.data.imagery.SpotImage
 import com.scenescout.app.ui.screens.CommunityScreen
 import com.scenescout.app.ui.screens.DiscoverScreen
 import com.scenescout.app.ui.screens.MapScreen
@@ -48,8 +51,17 @@ class MainActivity : ComponentActivity() {
 fun SceneScoutApp() {
     SceneScoutTheme {
         val repo = remember { SampleSpotRepository() }
+        val imageryRepo = remember {
+            SampleImageryRepository(
+                mapsApiKey = BuildConfig.MAPS_API_KEY,
+                mapillaryToken = BuildConfig.MAPILLARY_TOKEN,
+            )
+        }
         // Sample data is Miami-based; the real app passes the device location.
         val spots = remember { repo.nearbySpots(25.7826, -80.1867, 50.0) }
+        val imagesBySpot = remember(spots) {
+            spots.associate { it.id to imageryRepo.imagesFor(it) }
+        }
         val allReviews = remember { spots.flatMap { repo.reviewsFor(it.id) } }
         var tab by remember { mutableStateOf(Tab.MAP) }
         var openSpot by remember { mutableStateOf<Spot?>(null) }
@@ -60,6 +72,7 @@ fun SceneScoutApp() {
             SpotDetailScreen(
                 spot = openSpot!!,
                 reviews = repo.reviewsFor(openSpot!!.id),
+                images = imagesBySpot[openSpot!!.id].orEmpty(),
                 onBack = { openSpot = null },
             )
         } else {
@@ -81,7 +94,13 @@ fun SceneScoutApp() {
                     Modifier.padding(inner),
                 ) {
                     when (tab) {
-                        Tab.MAP -> MapScreen(spots, goToSpot)
+                        Tab.MAP -> MapScreen(
+                        spots = spots,
+                        heroImageFor = { spot ->
+                            BestImagery.forDisplay(imagesBySpot[spot.id].orEmpty())
+                        },
+                        onSpotClick = goToSpot,
+                    )
                         Tab.DISCOVER -> DiscoverScreen(spots, goToSpot)
                         Tab.SCOUT -> ScoutScreen(spots, goToSpot)
                         Tab.COMMUNITY -> CommunityScreen(spots, allReviews, goToSpot)

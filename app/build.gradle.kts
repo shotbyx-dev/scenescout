@@ -20,6 +20,9 @@ android {
         val mapsKey: String = providers.gradleProperty("MAPS_API_KEY").getOrElse("MAPS_API_KEY_NOT_SET")
         manifestPlaceholders["MAPS_API_KEY"] = mapsKey
         buildConfigField("String", "MAPS_API_KEY", "\"$mapsKey\"")
+        // Free token from mapillary.com/dashboard — enables AI-eligible street imagery.
+        val mlyToken: String = providers.gradleProperty("MAPILLARY_TOKEN").getOrElse("")
+        buildConfigField("String", "MAPILLARY_TOKEN", "\"$mlyToken\"")
     }
 
     buildTypes {
@@ -60,6 +63,9 @@ dependencies {
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("com.google.maps.android:maps-compose:4.5.2")
+
+    // Image loading (spot galleries, map thumbnails)
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
     testImplementation("junit:junit:4.13.2")
 

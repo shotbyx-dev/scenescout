@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -23,23 +26,34 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.AssistChip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.scenescout.app.data.PermitLevel
 import com.scenescout.app.data.ScenicScorer
 import com.scenescout.app.data.Spot
 import com.scenescout.app.data.SpotReview
 import com.scenescout.app.data.SunTimes
+import com.scenescout.app.data.imagery.BestImagery
+import com.scenescout.app.data.imagery.SpotImage
 import java.time.LocalDate
 import java.time.ZoneId
 
 /** Full detail page for one spot: score breakdown, golden hour, permits, reviews. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SpotDetailScreen(spot: Spot, reviews: List<SpotReview>, onBack: () -> Unit) {
+fun SpotDetailScreen(
+    spot: Spot,
+    reviews: List<SpotReview>,
+    images: List<SpotImage>,
+    onBack: () -> Unit,
+) {
     val score = remember(spot) { ScenicScorer.scoreSpot(spot) }
     // Sample coordinates are Miami; real app uses the spot's city timezone.
     val sun = remember(spot) {
@@ -65,6 +79,52 @@ fun SpotDetailScreen(spot: Spot, reviews: List<SpotReview>, onBack: () -> Unit) 
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // Imagery strip — sharpest first, with attribution + AI badge.
+            if (images.isNotEmpty()) {
+                Column {
+                    Text("Street views", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(8.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(images, key = { it.url }) { image ->
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface),
+                            ) {
+                                Column(Modifier.width(280.dp)) {
+                                    AsyncImage(
+                                        model = image.url,
+                                        contentDescription = "View of ${spot.name}",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(160.dp)
+                                            .clip(MaterialTheme.shapes.medium),
+                                    )
+                                    Column(Modifier.padding(8.dp)) {
+                                        Text(image.source.attribution,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        if (image.source.analyzableByAi) {
+                                            AssistChip(
+                                                onClick = {},
+                                                label = { Text("AI can score this") },
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (!BestImagery.hasAnalyzableImage(images)) {
+                        Text(
+                            "These previews are display-only (Google ToS). " +
+                                "AI scoring uses Mapillary or uploaded photos.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
             // Score breakdown
             Card(colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface)) {

@@ -1,5 +1,7 @@
 package com.scenescout.app.data
 
+import com.scenescout.app.data.imagery.SpotImage
+
 /** What kind of shoot a spot is good for. */
 enum class ShootType(val label: String) {
     MUSIC_VIDEO("Music video"),
@@ -26,6 +28,8 @@ data class Spot(
     val photoUrl: String? = null,
     val permit: PermitInfo = PermitInfo.unknown(),
     val submittedBy: String = "SceneScout",
+    /** Imagery for this spot; see ImagerySource for display vs AI rules. */
+    val images: List<SpotImage> = emptyList(),
 )
 
 /** A community review of a spot. */
