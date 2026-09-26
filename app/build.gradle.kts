@@ -62,7 +62,7 @@ dependencies {
     // Maps + location (real map renders once MAPS_API_KEY is set)
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
-    implementation("com.google.maps.android:maps-compose:4.5.2")
+    implementation("com.google.maps.android:maps-compose:4.3.3")
 
     // Image loading (spot galleries, map thumbnails)
     implementation("io.coil-kt:coil-compose:2.6.0")
