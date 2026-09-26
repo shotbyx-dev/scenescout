@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Map pin with a play triangle: find your shot -->
+    <path
+        android:fillColor="#FFB300"
+        android:pathData="M54,14 C36,14 22,28 22,46 C22,70 54,94 54,94 C54,94 86,70 86,46 C86,28 72,14 54,14 Z" />
+    <path
+        android:fillColor="#0B0B0E"
+        android:pathData="M54,30 m-14,0 a14,14 0 1,1 28,0 a14,14 0 1,1 -28,0" />
+    <path
+        android:fillColor="#FFB300"
+        android:pathData="M49,35 L63,44 L49,53 Z" />
+</vector>
