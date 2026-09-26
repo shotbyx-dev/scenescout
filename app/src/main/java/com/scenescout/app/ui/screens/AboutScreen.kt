@@ -76,7 +76,7 @@ fun AboutScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.titleSmall,
             )
             Text(
-                "Map data © OpenStreetMap contributors via Google Maps. " +
+                "Map data © OpenStreetMap contributors © CARTO. " +
                     "Street View and Place Photos © Google, shown for preview only. " +
                     "Street-level imagery © Mapillary contributors (CC BY-SA). " +
                     "AI analysis never runs on Google imagery — only on " +

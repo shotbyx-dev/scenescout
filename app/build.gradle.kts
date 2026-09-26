@@ -12,8 +12,8 @@ android {
         applicationId = "com.scenescout.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 5
-        versionName = "0.5.0"
+        versionCode = 6
+        versionName = "0.6.0"
 
         // Google Maps API key: put MAPS_API_KEY=... in local.properties.
         // The map screen shows a graceful placeholder until a real key is set.
@@ -59,10 +59,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.5")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.5")
 
-    // Maps + location (real map renders once MAPS_API_KEY is set)
-    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    // Maps + location: MapLibre (free, no API key) + Play Services location
+    implementation("org.maplibre.gl:android-sdk:13.6.1")
     implementation("com.google.android.gms:play-services-location:21.3.0")
-    implementation("com.google.maps.android:maps-compose:4.3.3")
 
     // Image loading (spot galleries, map thumbnails)
     implementation("io.coil-kt:coil-compose:2.6.0")

@@ -32,7 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationServices
-import com.google.android.gms.maps.model.LatLng
+import org.maplibre.android.geometry.LatLng
 import com.scenescout.app.data.SampleSpotRepository
 import com.scenescout.app.data.Spot
 import com.scenescout.app.data.imagery.BestImagery
