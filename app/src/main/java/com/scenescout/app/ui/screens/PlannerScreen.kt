@@ -75,9 +75,10 @@ fun PlannerScreen(spots: List<Spot>, store: PlannerStore) {
         if (loaded) store.save(projects)
     }
 
-    fun updateSelected(transform: (ShootProject) -> ShootProject) {
-        val id = selectedId ?: return
-        projects = projects.map { if (it.id == id) transform(it) else it }
+    val updateSelected: ((ShootProject) -> ShootProject) -> Unit = { transform ->
+        selectedId?.let { id ->
+            projects = projects.map { if (it.id == id) transform(it) else it }
+        }
     }
 
     val project = projects.firstOrNull { it.id == selectedId }
