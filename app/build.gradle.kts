@@ -60,7 +60,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.5")
 
     // Maps + location: MapLibre (free, no API key) + Play Services location
-    implementation("org.maplibre.gl:android-sdk:13.6.1")
+    implementation("org.maplibre.gl:android-sdk:11.7.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
     // Image loading (spot galleries, map thumbnails)
