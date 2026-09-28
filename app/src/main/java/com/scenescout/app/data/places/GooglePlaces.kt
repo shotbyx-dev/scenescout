@@ -181,15 +181,31 @@ object GooglePlaces {
     fun bestFor(types: List<String>): List<ShootType> {
         val out = mutableSetOf<ShootType>()
         for (t in types) {
-            when (t) {
-                "night_club", "performing_arts_theater", "movie_theater", "stadium" ->
-                    out += ShootType.MUSIC_VIDEO
-                "beach", "park", "national_park", "botanical_garden", "marina",
-                "tourist_attraction", "zoo", "aquarium" -> out += ShootType.SCENIC
-                "museum", "art_gallery", "church", "mosque", "hindu_temple", "synagogue" ->
-                    out += ShootType.NARRATIVE
-                "stadium", "amusement_park", "beach", "national_park" ->
-                    out += ShootType.DRONE
+            // Independent ifs (not when): one type can earn several
+            // categories, e.g. stadium -> MUSIC_VIDEO + DRONE.
+            if (t in setOf(
+                    "night_club", "performing_arts_theater",
+                    "movie_theater", "stadium",
+                )
+            ) {
+                out += ShootType.MUSIC_VIDEO
+            }
+            if (t in setOf(
+                    "beach", "park", "national_park", "botanical_garden",
+                    "marina", "tourist_attraction", "zoo", "aquarium",
+                )
+            ) {
+                out += ShootType.SCENIC
+            }
+            if (t in setOf(
+                    "museum", "art_gallery", "church", "mosque",
+                    "hindu_temple", "synagogue",
+                )
+            ) {
+                out += ShootType.NARRATIVE
+            }
+            if (t in setOf("stadium", "amusement_park", "beach", "national_park")) {
+                out += ShootType.DRONE
             }
         }
         if (out.isEmpty()) out += ShootType.RUN_AND_GUN
@@ -264,6 +280,27 @@ object GooglePlaces {
 
     private val cache = mutableMapOf<String, Pair<Long, List<Spot>>>()
     private const val CACHE_TTL_MS = 10 * 60 * 1000L
+
+    /** Human-readable explanation for a Places failure. Never throws. */
+    fun friendlyError(cause: Throwable?): String {
+        val msg = cause?.message.orEmpty()
+        return when {
+            "HTTP 400" in msg ->
+                "Google rejected the request — the API key looks invalid. " +
+                    "Check the key in About > Google API key."
+            "HTTP 403" in msg ->
+                "Google refused the key — enable Places API (New) and billing " +
+                    "on the key's Cloud project, and check its restrictions."
+            "HTTP 429" in msg ->
+                "Google quota exceeded — wait a bit and try again."
+            "timeout" in msg.lowercase() || cause is java.net.SocketTimeoutException ->
+                "Google didn't answer in time — check your connection and retry."
+            cause is java.net.UnknownHostException ->
+                "No internet connection — showing sample spots."
+            msg.isNotBlank() -> "Live discovery failed: ${msg.take(160)}"
+            else -> "Live discovery failed — showing sample spots."
+        }
+    }
 
     // ------------------------------------------------------------------
     // Merging.

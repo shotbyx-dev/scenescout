@@ -131,15 +131,18 @@ private fun ApiKeySection(
     Text("Google API key", style = MaterialTheme.typography.titleSmall)
     Text(
         when {
-            saved -> "Key saved on this device — map, live discovery, and " +
-                "photos are unlocked."
+            saved -> "Key saved on this device — live discovery and real " +
+                "photos are unlocked. Note: the map tiles need the key " +
+                "bundled into the app build, so a saved key can't fix a " +
+                "blank map by itself."
             hasBuildKey -> "A key is bundled with this build. You can paste " +
-                "your own here to override it."
-            else -> "Paste your Google API key to unlock the map, live " +
-                "discovery, and real photos. Needs Maps SDK for Android + " +
-                "Places API (New) enabled with billing on your Google Cloud " +
-                "project — Google includes \$200 of free credit every month, " +
-                "which covers normal personal use."
+                "your own here to override it for discovery and photos."
+            else -> "Paste your Google API key to unlock live discovery and " +
+                "real photos. Needs Maps SDK for Android + Places API (New) " +
+                "enabled with billing on your Google Cloud project — Google " +
+                "includes \$200 of free credit every month, which covers " +
+                "normal personal use. (The map tiles need the key baked into " +
+                "the build; a pasted key alone won't render the map.)"
         },
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,

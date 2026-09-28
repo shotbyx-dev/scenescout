@@ -46,11 +46,13 @@ fun BriefPdfButton(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var building by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
 
     Button(
         onClick = {
             if (building) return@Button
             building = true
+            error = null
             scope.launch {
                 try {
                     val score = ScenicScorer.scoreSpot(spot)
@@ -78,6 +80,9 @@ fun BriefPdfButton(
                     context.startActivity(
                         Intent.createChooser(intent, "Send client one-pager"),
                     )
+                } catch (e: Exception) {
+                    error = "Couldn't build the PDF — ${e.message?.take(120)
+                        ?: "try again"}."
                 } finally {
                     building = false
                 }
@@ -88,6 +93,13 @@ fun BriefPdfButton(
     ) {
         Icon(Icons.Filled.PictureAsPdf, contentDescription = null)
         Text(if (building) "Building one-pager…" else "Client one-pager (PDF)")
+    }
+    error?.let {
+        androidx.compose.material3.Text(
+            it,
+            style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+        )
     }
 }
 

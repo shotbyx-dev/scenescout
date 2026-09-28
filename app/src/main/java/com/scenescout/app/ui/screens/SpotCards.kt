@@ -240,11 +240,3 @@ fun SpotList(
         }
     }
 }
-
-/** Overload for screens without imagery wired up yet. */
-@Composable
-fun SpotList(
-    spots: List<Spot>,
-    onSpotClick: (Spot) -> Unit,
-    modifier: Modifier = Modifier,
-) = SpotList(spots, null, onSpotClick, modifier)

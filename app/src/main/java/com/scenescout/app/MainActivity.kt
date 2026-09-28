@@ -13,18 +13,24 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +54,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import kotlinx.coroutines.launch
 import com.google.android.gms.maps.model.LatLng
 import com.scenescout.app.data.SampleSpotRepository
@@ -97,17 +104,32 @@ class MainActivity : ComponentActivity() {
         else locationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
+    /**
+     * Active GPS fix first; falls back to the last known location when a
+     * fresh fix can't be obtained (indoors, GPS warming up). Null only when
+     * there is genuinely no location to use.
+     */
     private fun fetchLocation() {
         try {
+            val client = LocationServices.getFusedLocationProviderClient(this)
             @Suppress("MissingPermission")
-            LocationServices.getFusedLocationProviderClient(this)
-                .lastLocation
+            val deliver: (android.location.Location?) -> Unit = { loc ->
+                onLocationResult?.invoke(
+                    loc?.let { LatLng(it.latitude, it.longitude) },
+                )
+            }
+            @Suppress("MissingPermission")
+            fun useLastLocation() {
+                client.lastLocation
+                    .addOnSuccessListener { deliver(it) }
+                    .addOnFailureListener { onLocationResult?.invoke(null) }
+            }
+            @Suppress("MissingPermission")
+            client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 .addOnSuccessListener { loc ->
-                    onLocationResult?.invoke(
-                        loc?.let { LatLng(it.latitude, it.longitude) },
-                    )
+                    if (loc != null) deliver(loc) else useLastLocation()
                 }
-                .addOnFailureListener { onLocationResult?.invoke(null) }
+                .addOnFailureListener { useLastLocation() }
         } catch (e: SecurityException) {
             onLocationResult?.invoke(null)
         }
@@ -154,6 +176,9 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
         }
         var isLive by remember { mutableStateOf(false) }
         var refreshing by remember { mutableStateOf(false) }
+        // Last Google Places failure, shown as a dismissible banner —
+        // the app never silently pretends to be live.
+        var discoveryError by remember { mutableStateOf<String?>(null) }
         val scope = rememberCoroutineScope()
         val refreshSpots: (LatLng) -> Unit = { c ->
             if (!refreshing) {
@@ -162,9 +187,13 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                     val static = repo.nearbySpots(c.latitude, c.longitude, 50.0)
                     val live = if (hasApiKey) {
                         try {
-                            GooglePlaces.discover(c.latitude, c.longitude, 10.0, apiKey)
+                            val spots = GooglePlaces.discover(
+                                c.latitude, c.longitude, 10.0, apiKey)
+                            discoveryError = null
+                            spots
                         } catch (e: Exception) {
-                            null // network/API failure — keep static spots
+                            discoveryError = GooglePlaces.friendlyError(e)
+                            null // keep static spots
                         }
                     } else {
                         null // no key yet — static spots + setup prompts
@@ -231,7 +260,14 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                             }
                         },
                         actions = {
-                            IconButton(onClick = { refreshSpots(center) }) {
+                            IconButton(
+                                onClick = {
+                                    // Manual refresh bypasses the 10-min cache.
+                                    GooglePlaces.clearCache()
+                                    discoveryError = null
+                                    refreshSpots(center)
+                                },
+                            ) {
                                 Icon(Icons.Filled.Refresh, contentDescription = "Refresh spots")
                             }
                             IconButton(onClick = { showAbout = true }) {
@@ -255,7 +291,42 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
             ) { inner ->
                 Box(Modifier.padding(inner)) {
                     BrandGlowBackground()
-                    AnimatedContent(
+                    Column(Modifier.fillMaxSize()) {
+                        discoveryError?.let { err ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer
+                                        .copy(alpha = 0.95f),
+                                ),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(
+                                        start = 12.dp, top = 8.dp,
+                                        end = 4.dp, bottom = 8.dp,
+                                    ),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        err,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    IconButton(
+                                        onClick = { discoveryError = null },
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.Close,
+                                            contentDescription = "Dismiss",
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Box(Modifier.weight(1f)) {
+                            AnimatedContent(
                         targetState = tab,
                         transitionSpec = {
                             (fadeIn(tween(280)) +
@@ -287,6 +358,7 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                                                     apiKey,
                                                 )
                                             } catch (e: Exception) {
+                                                discoveryError = GooglePlaces.friendlyError(e)
                                                 emptyList()
                                             }
                                             if (found.isNotEmpty()) {
@@ -303,6 +375,8 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                             Tab.PLANNER -> PlannerScreen(spots, plannerStore)
                             Tab.SCOUT -> ScoutScreen(spots, scoutQuery, goToSpot)
                             Tab.COMMUNITY -> CommunityScreen(spots, allReviews, goToSpot)
+                        }
+                    }
                         }
                     }
                 }

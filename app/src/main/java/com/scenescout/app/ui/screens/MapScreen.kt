@@ -102,13 +102,16 @@ fun MapScreen(
                 GlassCard(modifier = Modifier.padding(24.dp)) {
                     Column(Modifier.padding(20.dp)) {
                         Text(
-                            "Google Maps key needed",
+                            "Google key needed",
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "Add your Google API key once to unlock the map, " +
-                                "live discovery, and real photos.",
+                            "Add your Google API key to unlock live discovery " +
+                                "and real photos. The map tiles themselves need " +
+                                "the key bundled into the app build — if the map " +
+                                "is blank even with a key saved, the build is " +
+                                "missing it.",
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         Spacer(Modifier.height(12.dp))

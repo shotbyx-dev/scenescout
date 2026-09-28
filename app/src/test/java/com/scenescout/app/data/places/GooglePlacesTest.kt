@@ -114,6 +114,16 @@ class GooglePlacesTest {
     }
 
     @Test
+    fun `bestFor gives multi-category types every category`() {
+        val stadium = GooglePlaces.bestFor(listOf("stadium"))
+        assertTrue(stadium.contains(ShootType.MUSIC_VIDEO))
+        assertTrue(stadium.contains(ShootType.DRONE))
+        val beach = GooglePlaces.bestFor(listOf("beach"))
+        assertTrue(beach.contains(ShootType.SCENIC))
+        assertTrue(beach.contains(ShootType.DRONE))
+    }
+
+    @Test
     fun `bestFor falls back to run and gun`() {
         assertEquals(
             listOf(ShootType.RUN_AND_GUN),
@@ -152,5 +162,30 @@ class GooglePlacesTest {
         assertFalse(GooglePlaces.hasKey(""))
         assertFalse(GooglePlaces.hasKey("MAPS_API_KEY_NOT_SET"))
         assertTrue(GooglePlaces.hasKey("AIza..."))
+    }
+
+    // --- friendly errors ---
+
+    @Test
+    fun `friendlyError explains common failures`() {
+        assertTrue(
+            GooglePlaces.friendlyError(Exception("Places HTTP 400: {bad}"))
+                .contains("invalid", ignoreCase = true),
+        )
+        assertTrue(
+            GooglePlaces.friendlyError(Exception("Places HTTP 403: {denied}"))
+                .contains("billing", ignoreCase = true),
+        )
+        assertTrue(
+            GooglePlaces.friendlyError(Exception("Places HTTP 429: {slow}"))
+                .contains("quota", ignoreCase = true),
+        )
+        assertTrue(
+            GooglePlaces.friendlyError(java.net.UnknownHostException("x"))
+                .contains("internet", ignoreCase = true),
+        )
+        assertTrue(
+            GooglePlaces.friendlyError(null).isNotBlank(),
+        )
     }
 }

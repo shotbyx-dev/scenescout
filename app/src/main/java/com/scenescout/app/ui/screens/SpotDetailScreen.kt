@@ -63,7 +63,7 @@ fun SpotDetailScreen(
     onBack: () -> Unit,
 ) {
     val score = remember(spot) { ScenicScorer.scoreSpot(spot) }
-    // Real nearby photos load asynchronously (Wikimedia Commons, no key needed).
+    // Google Place Photos for this place, loaded asynchronously.
     var images by remember(spot.id) { mutableStateOf(imagery.imagesFor(spot)) }
     var photosLoading by remember(spot.id) { mutableStateOf(true) }
     LaunchedEffect(spot.id) {
@@ -186,7 +186,7 @@ fun SpotDetailScreen(
                     }
                     if (!BestImagery.hasAnalyzableImage(images)) {
                         Text(
-                            "Real photos from Wikimedia Commons contributors, " +
+                            "Place photos © Google contributors, " +
                                 "shown with credit.",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -258,7 +258,6 @@ fun SpotDetailScreen(
                                 Icon(Icons.Filled.Star, contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary)
                             }
-                            Spacer(Modifier.height(0.dp))
                             Text("  ${review.author}",
                                 style = MaterialTheme.typography.labelMedium)
                         }
