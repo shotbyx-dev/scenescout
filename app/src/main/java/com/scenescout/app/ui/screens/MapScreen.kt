@@ -86,12 +86,20 @@ fun MapScreen(
     }
 
     // Recenter when the GPS fix arrives after first composition,
-    // or when the user taps the recenter button.
+    // or when the user taps the recenter button. CameraUpdateFactory
+    // needs the Maps SDK initialized (i.e. a map was actually created);
+    // without an API key there is no map, so fall back to positioning
+    // the camera directly instead of crashing.
     LaunchedEffect(userLocation, recenterTick) {
-        userLocation?.let {
-            cameraPositionState.animate(
-                CameraUpdateFactory.newLatLngZoom(it, 12f), 800,
-            )
+        userLocation?.let { loc ->
+            try {
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newLatLngZoom(loc, 12f), 800,
+                )
+            } catch (_: Exception) {
+                cameraPositionState.position =
+                    CameraPosition.fromLatLngZoom(loc, 12f)
+            }
         }
     }
 
