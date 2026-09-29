@@ -31,19 +31,24 @@ object SpotBriefPdf {
 
     fun render(context: Context, brief: SpotBrief, hero: Bitmap?): File {
         val doc = PdfDocument()
-        val page = doc.startPage(
-            PdfDocument.PageInfo.Builder(PAGE_W.toInt(), PAGE_H.toInt(), 1).create(),
-        )
         try {
-            draw(page.canvas, brief, hero)
+            val page = doc.startPage(
+                PdfDocument.PageInfo.Builder(PAGE_W.toInt(), PAGE_H.toInt(), 1).create(),
+            )
+            try {
+                draw(page.canvas, brief, hero)
+            } finally {
+                doc.finishPage(page)
+            }
+            val dir = File(context.cacheDir, "briefs").apply { mkdirs() }
+            val file = File(dir, "scenescout-brief.pdf")
+            file.outputStream().use { doc.writeTo(it) }
+            return file
         } finally {
-            doc.finishPage(page)
+            // Native resources are always released, even if draw() or
+            // writeTo() throws — the caller's error feedback still fires.
+            doc.close()
         }
-        val dir = File(context.cacheDir, "briefs").apply { mkdirs() }
-        val file = File(dir, "scenescout-brief.pdf")
-        file.outputStream().use { doc.writeTo(it) }
-        doc.close()
-        return file
     }
 
     private fun draw(canvas: Canvas, brief: SpotBrief, hero: Bitmap?) {
@@ -138,6 +143,7 @@ object SpotBriefPdf {
         dimPaint.textAlign = Paint.Align.CENTER
         canvas.drawText(brief.footer, PAGE_W / 2f, PAGE_H - 64f, dimPaint)
         canvas.drawText(brief.coordinates, PAGE_W / 2f, PAGE_H - 110f, dimPaint)
+        canvas.drawText(brief.mapsLink, PAGE_W / 2f, PAGE_H - 150f, dimPaint)
         dimPaint.textAlign = Paint.Align.LEFT
     }
 

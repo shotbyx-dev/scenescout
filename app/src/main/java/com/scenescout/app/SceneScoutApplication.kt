@@ -1,6 +1,9 @@
 package com.scenescout.app
 
 import android.app.Application
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import com.scenescout.app.data.places.PhotoAuth
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -9,8 +12,20 @@ import java.util.Locale
 /**
  * Installs a global crash catcher: the next launch shows the stack trace
  * in-app so a crash can be diagnosed without adb/logcat access.
+ *
+ * Also supplies Coil's image loader: Place Photo requests go through an
+ * OkHttp client that attaches the API key as headers (X-Goog-Api-Key,
+ * X-Android-Package, X-Android-Cert) instead of embedding it in the URL.
  */
-class SceneScoutApplication : Application() {
+class SceneScoutApplication : Application(), ImageLoaderFactory {
+
+    override fun newImageLoader(): ImageLoader {
+        // The interceptor reads PhotoAuth.apiKey per request, so a pasted key
+        // takes effect without rebuilding the loader.
+        return ImageLoader.Builder(this)
+            .okHttpClient { PhotoAuth.photoHttpClient(this) }
+            .build()
+    }
 
     override fun onCreate() {
         super.onCreate()

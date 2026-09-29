@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -35,6 +36,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,6 +69,7 @@ import com.scenescout.app.data.Spot
 import com.scenescout.app.data.imagery.GoogleImageryRepository
 import com.scenescout.app.data.places.ApiKeyStore
 import com.scenescout.app.data.places.GooglePlaces
+import com.scenescout.app.data.places.PhotoAuth
 import com.scenescout.app.data.planner.PlannerStore
 import com.scenescout.app.ui.screens.AboutScreen
 import com.scenescout.app.ui.screens.CommunityScreen
@@ -148,11 +151,17 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
         val context = androidx.compose.ui.platform.LocalContext.current
         val repo = remember { SampleSpotRepository() }
         val apiKeyStore = remember { ApiKeyStore(context) }
+        // Captures package name + signing-cert fingerprint once, so REST and
+        // photo requests can carry the Android app-restriction headers.
+        remember(context) { PhotoAuth.init(context) }
         // Bumped whenever the key is saved/cleared so discovery re-runs.
         var keyTick by remember { mutableStateOf(0) }
         // User-pasted key wins; the build-time key (CI secret) is the fallback.
+        // Published synchronously to PhotoAuth (not in a LaunchedEffect) so
+        // the photo interceptor has it before any image request fires.
         val apiKey = remember(keyTick) {
-            apiKeyStore.getKey()?.ifBlank { null } ?: BuildConfig.MAPS_API_KEY
+            (apiKeyStore.getKey()?.ifBlank { null } ?: BuildConfig.MAPS_API_KEY)
+                .also { PhotoAuth.apiKey = it.ifBlank { null } }
         }
         val hasApiKey = GooglePlaces.hasKey(apiKey)
         val imageryRepo = remember(keyTick) {
@@ -237,6 +246,7 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
         // Last Google Places failure, shown as a dismissible banner —
         // the app never silently pretends to be live.
         var discoveryError by remember { mutableStateOf<String?>(null) }
+        var searchNotice by remember { mutableStateOf<String?>(null) }
         val scope = rememberCoroutineScope()
         val refreshSpots: (LatLng) -> Unit = { c ->
             if (!refreshing) {
@@ -281,6 +291,8 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
             tab = Tab.SCOUT
         }
 
+        // Read once into a local val so the null-check below smart-casts.
+        val spot = openSpot
         when {
             showAbout -> AboutScreen(
                 onBack = { showAbout = false },
@@ -289,11 +301,12 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                     BuildConfig.MAPS_API_KEY.isNotBlank(),
                 onKeyChanged = { keyTick++ },
             )
-            openSpot != null -> SpotDetailScreen(
-                spot = openSpot!!,
-                reviews = repo.reviewsFor(openSpot!!.id),
+            spot != null -> SpotDetailScreen(
+                spot = spot,
+                reviews = repo.reviewsFor(spot.id),
                 imagery = imageryRepo,
                 onBack = { openSpot = null },
+                keyTick = keyTick,
             )
             else -> Scaffold(
                 topBar = {
@@ -325,8 +338,18 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                                     discoveryError = null
                                     refreshSpots(center)
                                 },
+                                // Disabled while a refresh is in flight so taps
+                                // are never silently swallowed.
+                                enabled = !refreshing,
                             ) {
-                                Icon(Icons.Filled.Refresh, contentDescription = "Refresh spots")
+                                if (refreshing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    Icon(Icons.Filled.Refresh, contentDescription = "Refresh spots")
+                                }
                             }
                             IconButton(onClick = { showAbout = true }) {
                                 Icon(Icons.Filled.Info, contentDescription = "About")
@@ -401,31 +424,48 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                                 imagery = imageryRepo,
                                 onSpotClick = goToSpot,
                                 onOpenKeySettings = { showAbout = true },
+                                keyTick = keyTick,
                             )
                             Tab.DISCOVER -> DiscoverScreen(
                                 spots, imageryRepo, goToSpot, searchTag,
                                 hasApiKey = hasApiKey,
+                                notice = searchNotice,
+                                onNoticeConsumed = { searchNotice = null },
+                                keyTick = keyTick,
                                 onServerSearch = { query ->
-                                    if (!refreshing && hasApiKey) {
+                                    if (!hasApiKey) {
+                                        searchNotice = "Add your Google API key in About " +
+                                            "to search live Google places."
+                                    } else if (!refreshing) {
                                         refreshing = true
                                         scope.launch {
-                                            val found = try {
-                                                GooglePlaces.textSearch(
-                                                    query,
-                                                    center.latitude, center.longitude,
-                                                    apiKey,
-                                                )
-                                            } catch (e: Exception) {
-                                                discoveryError = GooglePlaces.friendlyError(e)
-                                                emptyList()
+                                            try {
+                                                val found = try {
+                                                    GooglePlaces.textSearch(
+                                                        query,
+                                                        center.latitude, center.longitude,
+                                                        apiKey,
+                                                    )
+                                                } catch (e: Exception) {
+                                                    discoveryError = GooglePlaces.friendlyError(e)
+                                                    // A stale "no matches" notice must not sit
+                                                    // next to the fresh error banner.
+                                                    searchNotice = null
+                                                    emptyList()
+                                                }
+                                                if (found.isNotEmpty()) {
+                                                    val static = repo.nearbySpots(
+                                                        center.latitude, center.longitude, 50.0)
+                                                    liveSpots = GooglePlaces.mergeSpots(static, found)
+                                                    isLive = true
+                                                    searchNotice = null
+                                                } else if (discoveryError == null) {
+                                                    searchNotice = "No matches for \"$query\" — " +
+                                                        "try different words."
+                                                }
+                                            } finally {
+                                                refreshing = false
                                             }
-                                            if (found.isNotEmpty()) {
-                                                val static = repo.nearbySpots(
-                                                    center.latitude, center.longitude, 50.0)
-                                                liveSpots = GooglePlaces.mergeSpots(static, found)
-                                                isLive = true
-                                            }
-                                            refreshing = false
                                         }
                                     }
                                 },

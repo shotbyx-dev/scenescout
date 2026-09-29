@@ -5,7 +5,8 @@ package com.scenescout.app.data.imagery
  *
  * The split matters because of Google's ToS: Google imagery may be DISPLAYED
  * (with attribution) but must NOT be fed to AI models. Mapillary imagery is
- * CC BY-SA and explicitly allows analysis/ML use, so it feeds the AI scorer.
+ * CC BY-SA and explicitly allows analysis/ML use, so it stays eligible for
+ * future AI scoring.
  */
 enum class ImagerySource(
     val analyzableByAi: Boolean,
@@ -17,22 +18,10 @@ enum class ImagerySource(
         attribution = "Photo © Google contributors",
     ),
 
-    /** Street View Static API — display only, never sent to AI. */
-    GOOGLE_STREET_VIEW(
-        analyzableByAi = false,
-        attribution = "Imagery © Google",
-    ),
-
     /** Mapillary street-level imagery — display + AI analysis allowed (CC BY-SA). */
     MAPILLARY(
         analyzableByAi = true,
         attribution = "Imagery © Mapillary contributors (CC BY-SA)",
-    ),
-
-    /** Wikimedia Commons geotagged photos — real nearby photos, display only. */
-    WIKIMEDIA_COMMONS(
-        analyzableByAi = false,
-        attribution = "Imagery © Wikimedia Commons contributors",
     ),
 
     /** Photos the user (or community) uploaded — display + AI analysis allowed. */

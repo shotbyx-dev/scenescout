@@ -1,5 +1,6 @@
 package com.scenescout.app.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.scenescout.app.data.Spot
 import com.scenescout.app.data.SpotReview
@@ -35,19 +38,33 @@ fun CommunityScreen(
 ) {
     val byId = spots.associateBy { it.id }
     Box(Modifier.fillMaxSize()) {
-        BrandWatermark()
         Column(Modifier.fillMaxSize()) {
-        Text(
-            "Community intel",
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp),
-        )
-        Text(
-            "Real shoot reports from videographers — stars, best light, hassle level.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
+        // Cinematic header matching Discover.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                            Color.Transparent,
+                        ),
+                    ),
+                ),
+        ) {
+            BrandWatermark(alpha = 0.10f)
+            Column(Modifier.padding(start = 16.dp, top = 20.dp, end = 16.dp, bottom = 12.dp)) {
+                Text(
+                    "Community intel",
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+                Text(
+                    "Real shoot reports from videographers — stars, best light, hassle level.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         Spacer(Modifier.height(8.dp))
         LazyColumn(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -69,7 +86,7 @@ fun CommunityScreen(
                             Text(spot?.name ?: "Unknown spot",
                                 style = MaterialTheme.typography.titleSmall)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                repeat(review.stars) {
+                                repeat(review.stars.coerceIn(0, 5)) {
                                     Icon(Icons.Filled.Star, contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary)
                                 }

@@ -39,6 +39,12 @@ class SunTimesTest {
         assertEquals("7:15 PM", SunTimes.format(1155))
         assertEquals("12:00 PM", SunTimes.format(720))
     }
+
+    @Test
+    fun `format shows a dash when the sun event does not happen`() {
+        // Polar day/night: sunEventMinutes returns -1, never "12:00 AM".
+        assertEquals("—", SunTimes.format(-1))
+    }
 }
 
 class PermitGuideTest {

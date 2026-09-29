@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import android.content.Intent
 import com.scenescout.app.ui.theme.GlassCard
+import com.scenescout.app.ui.theme.GradientScoreBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -61,13 +63,18 @@ fun SpotDetailScreen(
     reviews: List<SpotReview>,
     imagery: GoogleImageryRepository,
     onBack: () -> Unit,
+    /** Bumped when the API key changes — gallery refetches with the new key. */
+    keyTick: Int = 0,
 ) {
     val score = remember(spot) { ScenicScorer.scoreSpot(spot) }
     // Google Place Photos for this place, loaded asynchronously.
-    var images by remember(spot.id) { mutableStateOf(imagery.imagesFor(spot)) }
-    var photosLoading by remember(spot.id) { mutableStateOf(true) }
-    LaunchedEffect(spot.id) {
-        images = imagery.imagesForAsync(spot)
+    var images by remember(spot.id, keyTick) { mutableStateOf(imagery.imagesFor(spot)) }
+    var photosLoading by remember(spot.id, keyTick) { mutableStateOf(true) }
+    // URLs that failed to load (offline, revoked) — dropped from the gallery.
+    var failedUrls by remember(spot.id, keyTick) { mutableStateOf(emptySet<String>()) }
+    LaunchedEffect(spot.id, keyTick) {
+        images = runCatching { imagery.imagesForAsync(spot) }.getOrNull()
+            ?: imagery.imagesFor(spot)
         photosLoading = false
     }
     // Golden hour uses the device timezone — correct wherever the scout is.
@@ -86,6 +93,8 @@ fun SpotDetailScreen(
         val text = buildString {
             appendLine("\uD83C\uDFAC ${spot.name} — ${score.overall}/100 (${score.label})")
             appendLine("\uD83D\uDCCD ${spot.latitude}, ${spot.longitude}")
+            appendLine("https://www.google.com/maps/search/?api=1&query=" +
+                "${spot.latitude},${spot.longitude}")
             appendLine("\uD83C\uDF05 Golden hour: " +
                 "${SunTimes.format(sun.morningGoldenStart)}–${SunTimes.format(sun.morningGoldenEnd)} / " +
                 "${SunTimes.format(sun.eveningGoldenStart)}–${SunTimes.format(sun.eveningGoldenEnd)}")
@@ -99,7 +108,15 @@ fun SpotDetailScreen(
             putExtra(Intent.EXTRA_SUBJECT, "Shoot location: ${spot.name}")
             putExtra(Intent.EXTRA_TEXT, text)
         }
-        context.startActivity(Intent.createChooser(intent, "Share this spot"))
+        try {
+            context.startActivity(Intent.createChooser(intent, "Share this spot"))
+        } catch (_: Exception) {
+            // No app on the device handles plain-text sharing (minimal ROMs,
+            // restricted work profiles): never crash on a Share tap.
+            android.widget.Toast.makeText(
+                context, "No app available to share with", android.widget.Toast.LENGTH_SHORT,
+            ).show()
+        }
     }
     Scaffold(
         topBar = {
@@ -143,45 +160,65 @@ fun SpotDetailScreen(
                     )
                 }
                 if (!photosLoading && images.isEmpty()) {
-                    Text(
-                        "No public photos found near this spot yet — " +
-                            "scout it yourself and be the first to shoot it.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(vertical = 8.dp),
+                    ) {
+                        Icon(
+                            Icons.Filled.PhotoCamera,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                .copy(alpha = 0.6f),
+                            modifier = Modifier.width(40.dp).height(40.dp),
+                        )
+                        Text(
+                            "No public photos found near this spot yet — " +
+                                "scout it yourself and be the first to shoot it.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-                if (images.isNotEmpty()) {
+                // Drop failed URLs before layout: zero-size items would still
+                // collect arrangement gaps, and the empty state must appear
+                // when every image failed.
+                val shown = images.filter { it.url !in failedUrls }
+                if (shown.isNotEmpty()) {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(images, key = { it.url }) { image ->
+                        items(shown, key = { it.url }) { image ->
                             Card(
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surface),
-                            ) {
-                                Column(Modifier.width(280.dp)) {
-                                    AsyncImage(
-                                        model = image.url,
-                                        contentDescription = "View of ${spot.name}",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(160.dp)
-                                            .clip(MaterialTheme.shapes.medium),
-                                    )
-                                    Column(Modifier.padding(8.dp)) {
-                                        Text(image.credit ?: image.source.attribution,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        if (image.source.analyzableByAi) {
-                                            // Informational badge, not a button.
-                                            Text(
-                                                "✓ AI can score this",
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surface),
+                                ) {
+                                    Column(Modifier.width(280.dp)) {
+                                        AsyncImage(
+                                            model = image.url,
+                                            contentDescription = "View of ${spot.name}",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(160.dp)
+                                                .clip(MaterialTheme.shapes.medium),
+                                            onError = {
+                                                failedUrls = failedUrls + image.url
+                                            },
+                                        )
+                                        Column(Modifier.padding(8.dp)) {
+                                            Text(image.credit ?: image.source.attribution,
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.primary,
-                                            )
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            if (image.source.analyzableByAi) {
+                                                // Informational badge, not a button.
+                                                Text(
+                                                    "✓ AI-eligible image",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                )
+                                            }
                                         }
                                     }
                                 }
-                            }
                         }
                     }
                     if (!BestImagery.hasAnalyzableImage(images)) {
@@ -204,9 +241,9 @@ fun SpotDetailScreen(
                         ScoreBadge(score.overall, score.label)
                     }
                     Spacer(Modifier.height(12.dp))
-                    ScoreBar("AI visual appeal", score.visualAppeal)
-                    ScoreBar("Shootability", score.shootability)
-                    ScoreBar("Community", score.community)
+                    GradientScoreBar("Visual appeal", score.visualAppeal)
+                    GradientScoreBar("Shootability", score.shootability)
+                    GradientScoreBar("Community", score.community)
                     Spacer(Modifier.height(8.dp))
                     Text(spot.description, style = MaterialTheme.typography.bodyMedium)
                 }
@@ -254,7 +291,7 @@ fun SpotDetailScreen(
                 GlassCard(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            repeat(review.stars) {
+                            repeat(review.stars.coerceIn(0, 5)) {
                                 Icon(Icons.Filled.Star, contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary)
                             }
@@ -272,17 +309,5 @@ fun SpotDetailScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ScoreBar(label: String, value: Int) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, style = MaterialTheme.typography.bodySmall)
-            Text("$value", style = MaterialTheme.typography.bodySmall)
-        }
-        LinearProgressIndicator(progress = { value / 100f },
-            modifier = Modifier.fillMaxWidth())
     }
 }

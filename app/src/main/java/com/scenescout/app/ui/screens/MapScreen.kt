@@ -5,8 +5,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -77,6 +79,8 @@ fun MapScreen(
     imagery: GoogleImageryRepository?,
     onSpotClick: (Spot) -> Unit,
     onOpenKeySettings: () -> Unit,
+    /** Bumped when the API key changes — preview photos refetch with the new key. */
+    keyTick: Int = 0,
 ) {
     var selected by remember { mutableStateOf<Spot?>(null) }
     var recenterTick by remember { mutableStateOf(0) }
@@ -197,12 +201,16 @@ fun MapScreen(
             ) {
                 GlassCard(onClick = { onSpotClick(spot) }) {
                     Column(Modifier.padding(12.dp)) {
-                        var hero by remember(spot.id) { mutableStateOf<SpotImage?>(null) }
-                        var photoLoaded by remember(spot.id) { mutableStateOf(false) }
-                        LaunchedEffect(spot.id) {
-                            hero = imagery?.heroForAsync(spot)
+                        var hero by remember(spot.id, keyTick) { mutableStateOf<SpotImage?>(null) }
+                        var photoLoaded by remember(spot.id, keyTick) { mutableStateOf(false) }
+                        var photoFailed by remember(spot.id, keyTick) { mutableStateOf(false) }
+                        LaunchedEffect(spot.id, keyTick) {
+                            hero = runCatching { imagery?.heroForAsync(spot) }.getOrNull()
                         }
-                        hero?.let { heroImage ->
+                        val heroImage = hero
+                        // A failed image collapses the whole photo block —
+                        // never leave a blank 140dp hole in the card.
+                        if (heroImage != null && !photoFailed) {
                             Box(
                                 Modifier
                                     .fillMaxWidth()
@@ -216,6 +224,9 @@ fun MapScreen(
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize(),
                                     onSuccess = { photoLoaded = true },
+                                    // Offline or broken URL: collapse the image
+                                    // instead of shimmering forever.
+                                    onError = { photoFailed = true },
                                 )
                             }
                             Spacer(Modifier.height(8.dp))
@@ -226,10 +237,28 @@ fun MapScreen(
                             )
                             Spacer(Modifier.height(4.dp))
                         }
-                        Text(spot.name, style = MaterialTheme.typography.titleMedium)
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                spot.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (spot.aiScore > 0) {
+                                Text(
+                                    "${spot.aiScore} scenic",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                )
+                            }
+                        }
                         Text(
                             "Tap to open spot details",
                             style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }

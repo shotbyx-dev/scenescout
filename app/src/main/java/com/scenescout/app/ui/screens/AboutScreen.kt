@@ -2,12 +2,14 @@ package com.scenescout.app.ui.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -35,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import com.scenescout.app.BuildConfig
 import com.scenescout.app.R
 import com.scenescout.app.data.places.ApiKeyStore
+import com.scenescout.app.ui.brand.BrandWatermark
 
 /**
  * About / credits screen, plus the one-time Google API key setup.
@@ -62,19 +65,25 @@ fun AboutScreen(
             )
         },
     ) { inner ->
-        Column(
+        Box(
             Modifier
                 .padding(inner)
-                .fillMaxSize()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .fillMaxSize(),
         ) {
+            BrandWatermark()
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
             Image(
                 painter = painterResource(R.drawable.shotbyx_logo),
                 contentDescription = "Shotbyx logo",
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .align(Alignment.CenterHorizontally)
+                    .width(180.dp)
                     .padding(vertical = 8.dp),
             )
             Text(
@@ -104,11 +113,11 @@ fun AboutScreen(
             )
             Text(
                 "Places, photos, and map © Google. Place photos show their " +
-                    "author credit. AI analysis never runs on Google imagery — " +
-                    "only on Mapillary photos and your own uploads.",
+                    "author credit. AI analysis never runs on Google imagery.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            }
         }
     }
 }
@@ -139,9 +148,9 @@ private fun ApiKeySection(
                 "your own here to override it for discovery and photos."
             else -> "Paste your Google API key to unlock live discovery and " +
                 "real photos. Needs Maps SDK for Android + Places API (New) " +
-                "enabled with billing on your Google Cloud project — Google " +
-                "includes \$200 of free credit every month, which covers " +
-                "normal personal use. (The map tiles need the key baked into " +
+                "enabled with billing on your Google Cloud project — Google's " +
+                "free monthly credit usually covers personal use (check current " +
+                "pricing on Google Cloud). (The map tiles need the key baked into " +
                 "the build; a pasted key alone won't render the map.)"
         },
         style = MaterialTheme.typography.bodySmall,

@@ -19,7 +19,7 @@ class GoogleImageryRepository(
         if (!GooglePlaces.hasKey(key) || spot.photoRefs.isEmpty()) return emptyList()
         return spot.photoRefs.mapIndexed { i, ref ->
             SpotImage(
-                url = GooglePlaces.photoUrl(ref, key, 1600),
+                url = GooglePlaces.photoUrl(ref, 1600),
                 title = spot.name,
                 credit = spot.photoCredits.getOrNull(i)?.ifBlank { "Google" }
                     ?: "Google",
@@ -43,7 +43,7 @@ class GoogleImageryRepository(
                 null
             } else {
                 SpotImage(
-                    url = GooglePlaces.photoUrl(spot.photoRefs.first(), key, 800),
+                    url = GooglePlaces.photoUrl(spot.photoRefs.first(), 800),
                     title = spot.name,
                     credit = spot.photoCredits.firstOrNull()?.ifBlank { "Google" }
                         ?: "Google",

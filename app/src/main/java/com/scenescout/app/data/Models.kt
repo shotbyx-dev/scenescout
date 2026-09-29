@@ -20,12 +20,11 @@ data class Spot(
     val description: String,
     val tags: List<String> = emptyList(),
     val bestFor: List<ShootType> = emptyList(),
-    /** 0..100 AI scenic score, computed from imagery analysis. */
+    /** 0..100 scenic score estimate — on-device heuristics; vision AI is on the roadmap. */
     val aiScore: Int = 0,
     /** 0..5 community star average. */
     val communityRating: Double = 0.0,
     val reviewCount: Int = 0,
-    val photoUrl: String? = null,
     val permit: PermitInfo = PermitInfo.unknown(),
     val submittedBy: String = "SceneScout",
     /** Imagery for this spot; see ImagerySource for display vs AI rules. */
@@ -79,7 +78,7 @@ enum class PermitLevel(val label: String) {
 /** Result of scoring a spot for a shoot. */
 data class ScenicScore(
     val overall: Int,          // 0..100
-    val visualAppeal: Int,     // 0..100 from AI imagery analysis
+    val visualAppeal: Int,     // 0..100 heuristic estimate (type, rating, photos)
     val shootability: Int,     // 0..100 crowd/access/parking friendliness
     val community: Int,        // 0..100 from star ratings
     val label: String,         // "Must shoot", "Strong pick", ...

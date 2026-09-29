@@ -76,7 +76,7 @@ object PlannerLogic {
         }
         val wrapMinutes = locations.maxOfOrNull {
             SunTimes.forDate(it.latitude, it.longitude, date, zone).eveningGoldenEnd
-        }?.plus(30) ?: (20 * 60)
+        }?.let { if (it < 0) -1 else it + 30 } ?: (20 * 60)
         blocks += ScheduleBlock(
             time = fmt(wrapMinutes), title = "Wrap",
             note = "Gear check against the packing list",
@@ -85,5 +85,5 @@ object PlannerLogic {
     }
 
     private fun fmt(minutes: Int): String =
-        "%02d:%02d".format(minutes / 60, minutes % 60)
+        if (minutes < 0) "—" else "%02d:%02d".format(minutes / 60, minutes % 60)
 }

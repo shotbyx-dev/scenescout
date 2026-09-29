@@ -115,4 +115,6 @@ data class ShootProject(
 }
 
 private fun JSONArray.asObjects(): List<JSONObject> =
-    (0 until length()).map { getJSONObject(it) }
+    // Skip corrupt elements instead of throwing: one bad entry must never
+    // wipe the user's whole planner file on load.
+    (0 until length()).mapNotNull { optJSONObject(it) }

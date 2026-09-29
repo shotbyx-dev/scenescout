@@ -32,6 +32,18 @@ object GooglePlaces {
     fun hasKey(key: String) = key.isNotBlank() && key != NOT_SET
 
     /**
+     * Android app-identity headers for direct REST calls, per Google's
+     * "Secure direct mobile web service calls" guidance. Set once at
+     * startup (see PhotoAuth.init); null until then, in which case the
+     * headers are simply omitted. Pure Kotlin so unit tests can set them.
+     */
+    @Volatile
+    var appPackage: String? = null
+
+    @Volatile
+    var appCertSha1: String? = null
+
+    /**
      * Place types worth filming (Places API "New" Table A). Kept tight:
      * every type here is a plausible shoot location, so results stay
      * cinematic instead of a generic business directory.
@@ -94,10 +106,17 @@ object GooglePlaces {
             )
             .toString()
 
-    /** Direct image URL for a Places photo (Coil follows the redirect). */
-    fun photoUrl(photoName: String, apiKey: String, maxWidthPx: Int = 800): String =
+    /**
+     * Direct image URL for a Places photo (Coil follows the redirect).
+     * Public URL for a Place Photo. The API key is NOT embedded: Coil sends
+     * it in the X-Goog-Api-Key / X-Android-Package / X-Android-Cert headers
+     * (see PhotoAuth), per Google's "Secure direct mobile web service calls"
+     * guidance, so an Android-restricted key is honored and the key never
+     * lands in logs or caches as part of a URL.
+     */
+    fun photoUrl(photoName: String, maxWidthPx: Int = 800): String =
         "https://places.googleapis.com/v1/$photoName/media" +
-            "?maxWidthPx=$maxWidthPx&key=$apiKey"
+            "?maxWidthPx=$maxWidthPx"
 
     // ------------------------------------------------------------------
     // Parsing + mapping — pure, unit-tested.
@@ -113,6 +132,37 @@ object GooglePlaces {
         } catch (_: Exception) {
             emptyList()
         }
+    }
+
+    /**
+     * Heuristic visual-appeal estimate (0..100) for a Google place.
+     * No ML involved: scenic place types, the Google rating, and whether
+     * photos exist are the signals. Keeps live spots comparable with the
+     * hand-tuned sample spots instead of showing 0 ("no analysis").
+     * Pure — unit-tested.
+     */
+    fun estimateVisualAppeal(types: List<String>, rating: Double, photoCount: Int): Int {
+        var s = 55
+        val scenic = setOf(
+            "tourist_attraction", "park", "national_park", "natural_feature",
+            "botanical_garden", "beach", "museum", "art_gallery", "church",
+            "hindu_temple", "mosque", "synagogue", "landmark",
+            "amusement_park", "aquarium", "zoo", "stadium",
+        )
+        val dull = setOf(
+            "parking", "gas_station", "car_repair", "car_dealer", "storage",
+            "plumber", "electrician", "laundry", "atm",
+        )
+        if (types.any { it in scenic }) s += 15
+        if (types.any { it in dull }) s -= 20
+        s += when {
+            rating >= 4.5 -> 10
+            rating >= 4.0 -> 5
+            rating in 0.1..<3.5 -> -5
+            else -> 0
+        }
+        if (photoCount > 0) s += 10
+        return s.coerceIn(0, 100)
     }
 
     private fun parsePlace(p: JSONObject?): Spot? {
@@ -144,6 +194,7 @@ object GooglePlaces {
                 credits += credit.ifBlank { "Google" }
             }
         }
+        val rating = p.optDouble("rating", 0.0)
         return Spot(
             id = "google:$id",
             name = name,
@@ -152,7 +203,8 @@ object GooglePlaces {
             description = summary.ifBlank { address },
             tags = tagsFor(types),
             bestFor = bestFor(types),
-            communityRating = p.optDouble("rating", 0.0),
+            aiScore = estimateVisualAppeal(types, rating, photos.size),
+            communityRating = rating,
             reviewCount = p.optInt("userRatingCount", 0),
             photoRefs = photos,
             photoCredits = credits,
@@ -224,6 +276,14 @@ object GooglePlaces {
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("X-Goog-Api-Key", apiKey)
                 setRequestProperty("X-Goog-FieldMask", FIELD_MASK)
+                // Lets an Android-restricted key work for direct REST calls,
+                // per Google's "Secure direct mobile web service calls".
+                appPackage?.let {
+                    setRequestProperty("X-Android-Package", it)
+                }
+                appCertSha1?.let {
+                    setRequestProperty("X-Android-Cert", it)
+                }
                 setRequestProperty(
                     "User-Agent", "SceneScout/1.0 (shotbyx-dev; videographer location app)")
                 connectTimeout = 15000

@@ -36,11 +36,20 @@ class GooglePlacesTest {
 
     @Test
     fun `photo url format`() {
-        val url = GooglePlaces.photoUrl("places/abc/photos/xyz", "KEY", 800)
+        val url = GooglePlaces.photoUrl("places/abc/photos/xyz", 800)
         assertEquals(
-            "https://places.googleapis.com/v1/places/abc/photos/xyz/media?maxWidthPx=800&key=KEY",
+            "https://places.googleapis.com/v1/places/abc/photos/xyz/media?maxWidthPx=800",
             url,
         )
+    }
+
+    @Test
+    fun `photo url never embeds the api key`() {
+        // The key travels in request headers (PhotoAuth), never in the URL,
+        // so it can't leak into logs or caches.
+        val url = GooglePlaces.photoUrl("places/abc/photos/xyz", 1600)
+        assertFalse(url.contains("key=", ignoreCase = true))
+        assertFalse(url.contains("SECRET"))
     }
 
     // --- parsing ---
@@ -187,5 +196,49 @@ class GooglePlacesTest {
         assertTrue(
             GooglePlaces.friendlyError(null).isNotBlank(),
         )
+    }
+
+    // --- visual-appeal heuristic (regression: Google spots showed AI 0) ---
+
+    @Test
+    fun `estimateVisualAppeal rewards scenic types ratings and photos`() {
+        val scenic = GooglePlaces.estimateVisualAppeal(
+            listOf("tourist_attraction", "park"), 4.7, 3)
+        assertTrue(scenic > 70)
+    }
+
+    @Test
+    fun `estimateVisualAppeal penalizes dull types`() {
+        val dull = GooglePlaces.estimateVisualAppeal(listOf("parking"), 0.0, 0)
+        assertTrue(dull < 50)
+    }
+
+    @Test
+    fun `estimateVisualAppeal baseline for a plain place`() {
+        assertEquals(55, GooglePlaces.estimateVisualAppeal(listOf("store"), 0.0, 0))
+    }
+
+    @Test
+    fun `estimateVisualAppeal stays within 0 to 100`() {
+        val high = GooglePlaces.estimateVisualAppeal(
+            listOf("beach", "park", "tourist_attraction"), 5.0, 10)
+        assertTrue(high in 0..100)
+        val low = GooglePlaces.estimateVisualAppeal(
+            listOf("parking", "gas_station"), 1.0, 0)
+        assertTrue(low in 0..100)
+    }
+
+    @Test
+    fun `parsePlace assigns a nonzero scenic score to google spots`() {
+        val json = """{"places":[{
+            "id":"p1","displayName":{"text":"Sunset Park"},
+            "location":{"latitude":26.1,"longitude":-80.2},
+            "types":["park","tourist_attraction"],
+            "rating":4.6,"userRatingCount":120,
+            "photos":[{"name":"places/p1/photos/a",
+                "authorAttributions":[{"displayName":"X"}]}]
+        }]}"""
+        val spot = GooglePlaces.parsePlaces(json).single()
+        assertTrue(spot.aiScore > 0)
     }
 }

@@ -55,9 +55,12 @@ fun SpotCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onTagClick: (String) -> Unit = {},
+    /** Bumped when the API key changes — resets photo state so images refetch. */
+    keyTick: Int = 0,
 ) {
     val score = ScenicScorer.scoreSpot(spot)
-    var photoLoaded by remember(spot.id, heroImage?.url) { mutableStateOf(false) }
+    var photoLoaded by remember(spot.id, heroImage?.url, keyTick) { mutableStateOf(false) }
+    var photoFailed by remember(spot.id, heroImage?.url, keyTick) { mutableStateOf(false) }
     GlassCard(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
@@ -69,7 +72,7 @@ fun SpotCard(
                     .fillMaxWidth()
                     .height(150.dp),
             ) {
-                if (heroImage != null) {
+                if (heroImage != null && !photoFailed) {
                     if (!photoLoaded) ShimmerBox(Modifier.fillMaxSize())
                     AsyncImage(
                         model = heroImage.url,
@@ -77,6 +80,9 @@ fun SpotCard(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                         onSuccess = { photoLoaded = true },
+                        // Offline or broken URL: fall back to the gradient
+                        // instead of shimmering forever.
+                        onError = { photoFailed = true },
                     )
                 } else {
                     val (top, bottom) = gradientFor(spot)
@@ -206,6 +212,8 @@ fun SpotList(
     onSpotClick: (Spot) -> Unit,
     modifier: Modifier = Modifier,
     onTagClick: (String) -> Unit = {},
+    /** Bumped when the API key changes — heroes refetch with the new key. */
+    keyTick: Int = 0,
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -215,15 +223,16 @@ fun SpotList(
         itemsIndexed(spots, key = { _, s -> s.id }) { index, spot ->
             // Hero photos load async per card and are cached in the repo,
             // so scrolling stays smooth and each spot fetches only once.
-            var hero by remember(spot.id) { mutableStateOf<SpotImage?>(null) }
-            LaunchedEffect(spot.id) {
-                hero = imagery?.heroForAsync(spot)
+            var hero by remember(spot.id, keyTick) { mutableStateOf<SpotImage?>(null) }
+            LaunchedEffect(spot.id, keyTick) {
+                hero = runCatching { imagery?.heroForAsync(spot) }.getOrNull()
             }
             StaggeredItem(index = index) {
                 SpotCard(
                     spot, hero,
                     onClick = { onSpotClick(spot) },
                     onTagClick = onTagClick,
+                    keyTick = keyTick,
                 )
             }
         }

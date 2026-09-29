@@ -23,17 +23,24 @@ object SunTimes {
     fun forDate(latitude: Double, longitude: Double, date: LocalDate, zone: ZoneId): Windows {
         val sunrise = sunEventMinutes(latitude, longitude, date, zone, rising = true)
         val sunset = sunEventMinutes(latitude, longitude, date, zone, rising = false)
+        // -1 means the event doesn't happen that day (polar day/night):
+        // propagate the sentinel instead of doing arithmetic on it.
         return Windows(
             sunriseMinutes = sunrise,
             sunsetMinutes = sunset,
             morningGoldenStart = sunrise,
-            morningGoldenEnd = sunrise + 60,
-            eveningGoldenStart = sunset - 60,
+            morningGoldenEnd = if (sunrise < 0) -1 else sunrise + 60,
+            eveningGoldenStart = if (sunset < 0) -1 else sunset - 60,
             eveningGoldenEnd = sunset,
         )
     }
 
+    /**
+     * Formats minutes-after-midnight as "6:24 AM". Negative input means the
+     * event doesn't happen that day (polar day/night) — shown as "—".
+     */
     fun format(minutes: Int): String {
+        if (minutes < 0) return "—"
         val h = (minutes / 60).coerceIn(0, 23)
         val m = (minutes % 60).coerceIn(0, 59)
         val ampm = if (h < 12) "AM" else "PM"

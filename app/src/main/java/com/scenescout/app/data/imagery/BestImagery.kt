@@ -1,11 +1,10 @@
 package com.scenescout.app.data.imagery
 
 /**
- * Picks the best image for each job, honoring the legal split:
- *  - forDisplay: sharpest image from ANY source (Google's are the best
- *    looking — display is allowed with attribution).
- *  - forAnalysis: sharpest image from AI-eligible sources ONLY
- *    (Mapillary, user uploads). Google imagery is never sent to AI.
+ * Picks the best image to show, honoring the legal split: Google imagery
+ * may be DISPLAYED (with attribution) but must never be fed to AI models.
+ * Only Mapillary (CC BY-SA) and user uploads are eligible for future AI
+ * analysis — no AI scorer ships in this version.
  *
  * Pure Kotlin — unit-testable.
  */
@@ -14,8 +13,6 @@ object BestImagery {
     /** Display priority when resolutions tie: Google photos look best. */
     private val displayOrder = listOf(
         ImagerySource.GOOGLE_PLACE_PHOTO,
-        ImagerySource.GOOGLE_STREET_VIEW,
-        ImagerySource.WIKIMEDIA_COMMONS,
         ImagerySource.MAPILLARY,
         ImagerySource.USER_UPLOAD,
     )
@@ -26,18 +23,6 @@ object BestImagery {
             compareBy<SpotImage> { it.widthPx ?: 0 }
                 .thenBy { -(displayOrder.indexOf(it.source)) },
         )
-
-    /** All images SHOWABLE in a gallery strip, sharpest first. */
-    fun gallery(images: List<SpotImage>): List<SpotImage> =
-        images.sortedWith(
-            compareByDescending<SpotImage> { it.widthPx ?: 0 }
-                .thenBy { displayOrder.indexOf(it.source) },
-        )
-
-    /** Best image the AI is ALLOWED to analyze for a spot. */
-    fun forAnalysis(images: List<SpotImage>): SpotImage? =
-        images.filter { it.source.analyzableByAi }
-            .maxByOrNull { it.widthPx ?: 0 }
 
     /** True when a spot has at least one AI-eligible image to score. */
     fun hasAnalyzableImage(images: List<SpotImage>): Boolean =

@@ -11,10 +11,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.border
@@ -29,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import com.scenescout.app.data.MoodMatcher
 import com.scenescout.app.data.ScenicScorer
@@ -36,6 +40,7 @@ import com.scenescout.app.data.Spot
 import com.scenescout.app.data.VibeMatcher
 import com.scenescout.app.ui.brand.BrandWatermark
 import com.scenescout.app.ui.theme.GlassCard
+import com.scenescout.app.ui.theme.GradientScoreBar
 import com.scenescout.app.ui.theme.StaggeredItem
 
 /**
@@ -123,7 +128,7 @@ private fun VibeSearch(
 ) {
     Text("AI Scout", style = MaterialTheme.typography.headlineSmall)
     Text(
-        "Describe the vibe. AI ranks matching spots by scenic score.",
+        "Describe the vibe — SceneScout ranks matching spots by scenic score.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -140,7 +145,10 @@ private fun VibeSearch(
     Spacer(Modifier.height(16.dp))
     if (searched) {
         if (results.isEmpty()) {
-            Text("No matches yet — try words like neon, beach, gritty, truck, abandoned.")
+            ScoutEmptyState(
+                "No matches yet",
+                "Try words like neon, beach, gritty, truck, abandoned.",
+            )
         } else {
             results.forEachIndexed { index, (spot, match) ->
                 StaggeredItem(index = index) {
@@ -151,8 +159,8 @@ private fun VibeSearch(
         }
     } else {
         Text(
-            "Vision scoring is on the roadmap — Mapillary street imagery " +
-                "and your own uploads will feed the cinematic scorer. " +
+            "Vision scoring is on the roadmap — your own uploads will " +
+                "feed the cinematic scorer. " +
                 "Today, Scout ranks spots with the on-device vibe and " +
                 "song-mood matchers.",
             style = MaterialTheme.typography.bodySmall,
@@ -192,9 +200,10 @@ private fun SongSearch(
     Spacer(Modifier.height(16.dp))
     if (searched) {
         if (results.isEmpty()) {
-            Text(
-                "Nothing matched — try mood words like lonely, neon, party, " +
-                    "rich, heartbreak, wild, or describe the story.",
+            ScoutEmptyState(
+                "Nothing matched",
+                "Try mood words like lonely, neon, party, rich, heartbreak, " +
+                    "wild — or describe the story.",
             )
         } else {
             results.forEachIndexed { index, match ->
@@ -206,6 +215,31 @@ private fun SongSearch(
                 Spacer(Modifier.height(8.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun ScoutEmptyState(title: String, hint: String) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(
+            Icons.Filled.SearchOff,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            modifier = Modifier.size(40.dp),
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            hint,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -231,13 +265,10 @@ private fun ScoutResultCard(
                 )
             }
             Spacer(Modifier.height(4.dp))
-            LinearProgressIndicator(
-                progress = { match / 100f },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            GradientScoreBar(label = "Match", value = match)
             Spacer(Modifier.height(4.dp))
             Text(
-                "${score.label} · AI ${score.overall}/100",
+                "${score.label} · ${score.overall}/100 scenic",
                 style = MaterialTheme.typography.bodySmall,
             )
             if (reasons.isNotEmpty()) {

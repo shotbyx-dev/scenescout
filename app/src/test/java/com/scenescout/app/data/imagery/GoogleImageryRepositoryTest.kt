@@ -44,7 +44,8 @@ class GoogleImageryRepositoryTest {
             val s = spot(listOf("places/abc/photos/xyz"))
             val first = repo.heroForAsync(s)
             assertNotNull(first)
-            assertTrue(first!!.url.contains("fake-key"))
+            // The key travels in request headers (PhotoAuth), never in the URL.
+            assertFalse(first!!.url.contains("fake-key"))
             // Second call hits the cache — same instance.
             assertSame(first, repo.heroForAsync(s))
         }

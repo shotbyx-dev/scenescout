@@ -4,7 +4,8 @@ import kotlin.math.roundToInt
 
 /**
  * Scores a filming spot by blending three signals:
- *  - visualAppeal: AI analysis of Street View / photo imagery (0..100)
+ *  - visualAppeal: estimated visual appeal, 0..100 (hand-tuned for sample
+ *    spots, place-data heuristics for Google spots — no ML yet)
  *  - shootability: how practical the spot is (crowds, access, parking) (0..100)
  *  - community: normalized star ratings from videographers (0..100)
  *
@@ -13,7 +14,7 @@ import kotlin.math.roundToInt
 object ScenicScorer {
 
     /** Weights used when all three signals are present. */
-    private const val W_AI = 0.45
+    private const val W_VISUAL = 0.45
     private const val W_SHOOT = 0.30
     private const val W_COMMUNITY = 0.25
 
@@ -22,20 +23,20 @@ object ScenicScorer {
         shootability: Int,
         communityStars: Double, // 0..5, 0 = no ratings yet
     ): ScenicScore {
-        val ai = visualAppeal.coerceIn(0, 100)
+        val visual = visualAppeal.coerceIn(0, 100)
         val shoot = shootability.coerceIn(0, 100)
         val community = starsToHundred(communityStars)
 
         val overall = if (communityStars <= 0.0) {
-            // No community data yet: blend AI + shootability only, re-normalized.
-            ((ai * W_AI + shoot * W_SHOOT) / (W_AI + W_SHOOT)).roundToInt()
+            // No community data yet: blend visual + shootability only, re-normalized.
+            ((visual * W_VISUAL + shoot * W_SHOOT) / (W_VISUAL + W_SHOOT)).roundToInt()
         } else {
-            (ai * W_AI + shoot * W_SHOOT + community * W_COMMUNITY).roundToInt()
+            (visual * W_VISUAL + shoot * W_SHOOT + community * W_COMMUNITY).roundToInt()
         }.coerceIn(0, 100)
 
         return ScenicScore(
             overall = overall,
-            visualAppeal = ai,
+            visualAppeal = visual,
             shootability = shoot,
             community = community,
             label = labelFor(overall),

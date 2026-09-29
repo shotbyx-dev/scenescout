@@ -6,12 +6,11 @@ import kotlin.math.pow
  * Spot data source. v1 ships with curated sample spots so the app works
  * offline on first run. This interface is where the real backends plug in:
  *  - Places API for nearby scenic places + Google reviews ("comments database")
- *  - Street View imagery -> AI vision scoring for [Spot.aiScore]
+ *  - Future: vision-AI scoring of imagery for [Spot.aiScore] (heuristics for now)
  *  - Firestore for community-submitted spots, stars, and shoot notes
  */
 interface SpotRepository {
     fun nearbySpots(latitude: Double, longitude: Double, radiusKm: Double): List<Spot>
-    fun spotById(id: String): Spot?
     fun reviewsFor(spotId: String): List<SpotReview>
 }
 
@@ -293,8 +292,6 @@ class SampleSpotRepository : SpotRepository {
             Math.sin(dLon / 2).pow(2.0)
         return 2 * r * Math.asin(Math.sqrt(a))
     }
-
-    override fun spotById(id: String): Spot? = spots.firstOrNull { it.id == id }
 
     override fun reviewsFor(spotId: String): List<SpotReview> =
         reviews.filter { it.spotId == spotId }

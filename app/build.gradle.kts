@@ -12,8 +12,8 @@ android {
         applicationId = "com.scenescout.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 13
-        versionName = "0.10.4"
+        versionCode = 14
+        versionName = "0.10.5"
 
         // Google Maps + Places API key: MAPS_API_KEY gradle property
         // (local.properties for dev, GitHub secret MAPS_API_KEY in CI).
@@ -23,9 +23,6 @@ android {
             .getOrElse("MAPS_API_KEY_NOT_SET").ifBlank { "MAPS_API_KEY_NOT_SET" }
         manifestPlaceholders["MAPS_API_KEY"] = mapsKey
         buildConfigField("String", "MAPS_API_KEY", "\"$mapsKey\"")
-        // Free token from mapillary.com/dashboard — enables AI-eligible street imagery.
-        val mlyToken: String = providers.gradleProperty("MAPILLARY_TOKEN").getOrElse("")
-        buildConfigField("String", "MAPILLARY_TOKEN", "\"$mlyToken\"")
     }
 
     buildTypes {
@@ -71,6 +68,12 @@ dependencies {
 
     // Image loading (spot galleries, map thumbnails)
     implementation("io.coil-kt:coil-compose:2.6.0")
+    // Explicit OkHttp: Coil 2.6.0's ImageLoader.Builder.okHttpClient takes an
+    // OkHttpClient (or a lambda returning one), so Place Photo requests can
+    // carry the API key in headers (X-Goog-Api-Key / X-Android-Package /
+    // X-Android-Cert) instead of embedding it in the URL. There is no
+    // coil-network-okhttp artifact in Coil 2.x (that is Coil 3-only).
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")

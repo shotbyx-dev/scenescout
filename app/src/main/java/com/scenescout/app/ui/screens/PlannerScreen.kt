@@ -281,6 +281,7 @@ private fun ScheduleSection(
     var adding by remember(project.id) { mutableStateOf(false) }
     var time by remember(project.id) { mutableStateOf("") }
     var title by remember(project.id) { mutableStateOf("") }
+    var blockError by remember(project.id) { mutableStateOf<String?>(null) }
     val zone = ZoneId.systemDefault()
 
     GlassCard(modifier = Modifier.fillMaxWidth()) {
@@ -331,15 +332,38 @@ private fun ScheduleSection(
             }
             if (adding) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = time, onValueChange = { time = it },
-                        label = { Text("Time (HH:mm)") }, modifier = Modifier.weight(1f))
-                    OutlinedTextField(value = title, onValueChange = { title = it },
-                        label = { Text("Block") }, modifier = Modifier.weight(2f))
+                    OutlinedTextField(value = time,
+                        onValueChange = { time = it; blockError = null },
+                        label = { Text("Time (HH:mm)") },
+                        modifier = Modifier.weight(1f),
+                        isError = blockError != null,
+                        singleLine = true)
+                    OutlinedTextField(value = title,
+                        onValueChange = { title = it; blockError = null },
+                        label = { Text("Block") },
+                        modifier = Modifier.weight(2f),
+                        isError = blockError != null,
+                        singleLine = true)
+                }
+                blockError?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error)
                 }
                 Button(
                     onClick = {
-                        if (time.matches(Regex("\\d{1,2}:\\d{2}")) && title.isNotBlank()) {
-                            val normalized = time.padStart(5, '0')
+                        // Strict validation: the old regex accepted "99:99".
+                        val parts = time.trim().split(":")
+                        val h = parts.getOrNull(0)?.toIntOrNull()
+                        val m = parts.getOrNull(1)?.toIntOrNull()
+                        val validTime = parts.size == 2 && h != null && m != null &&
+                            h in 0..23 && m in 0..59
+                        blockError = when {
+                            !validTime -> "Enter a real time, e.g. 18:30"
+                            title.isBlank() -> "Give the block a title"
+                            else -> null
+                        }
+                        if (blockError == null) {
+                            val normalized = "%02d:%02d".format(h!!, m!!)
                             updateSelected { p ->
                                 p.copy(schedule = (p.schedule +
                                     ScheduleBlock(time = normalized,

@@ -76,4 +76,18 @@ class PlannerTest {
     fun `corrupt planner json loads as empty rather than crashing`() {
         assertTrue(ShootProject.listFromJson("").isEmpty())
     }
+
+    @Test
+    fun `one corrupt element does not wipe the other projects`() {
+        val good = PlannerLogic.newProject("Good", "C", "2026-10-01")
+        val raw = org.json.JSONArray().apply {
+            put(good.toJson())
+            put("this is not an object")
+            put(org.json.JSONObject().put("title", "Partial"))
+        }.toString()
+        val restored = ShootProject.listFromJson(raw)
+        assertEquals(2, restored.size)
+        assertEquals("Good", restored[0].title)
+        assertEquals("Partial", restored[1].title)
+    }
 }

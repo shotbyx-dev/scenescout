@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- The user-pasted Google API key lives in the "scenescout" prefs and
+         must never leave the device through cloud backup. Planner projects
+         (planner.json) stay backed up. -->
+    <exclude domain="sharedpref" path="scenescout.xml"/>
+</full-backup-content>
