@@ -29,6 +29,10 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,6 +43,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -163,6 +168,59 @@ fun SceneScoutApp(requestLocation: ((LatLng?) -> Unit) -> Unit) {
                 locationAsked = true
                 requestLocation { userLocation = it }
             }
+        }
+        // Crash reporter: if the previous run died, show the stack trace so
+        // it can be diagnosed (and pasted to the developer) without logcat.
+        var crashLog by remember { mutableStateOf<String?>(null) }
+        LaunchedEffect(Unit) {
+            crashLog = SceneScoutApplication.consumeCrashLog(
+                context.applicationContext as android.app.Application,
+            )
+        }
+        crashLog?.let { log ->
+            val keyState = remember(apiKey) {
+                val buildKey = BuildConfig.MAPS_API_KEY != GooglePlaces.NOT_SET &&
+                    BuildConfig.MAPS_API_KEY.isNotBlank()
+                val pasted = apiKeyStore.getKey()?.isNotBlank() == true
+                "maps build key present=$buildKey, pasted key present=$pasted"
+            }
+            AlertDialog(
+                onDismissRequest = { crashLog = null },
+                title = { Text("The app crashed last time") },
+                text = {
+                    Column(Modifier.verticalScroll(rememberScrollState())) {
+                        Text(
+                            "Copy this report and send it over — it says " +
+                                "exactly what went wrong.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            keyState,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            log,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val cm = ContextCompat.getSystemService(
+                            context, android.content.ClipboardManager::class.java)
+                        cm?.setPrimaryClip(
+                            android.content.ClipData.newPlainText("SceneScout crash", log))
+                        crashLog = null
+                    }) { Text("Copy report") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { crashLog = null }) { Text("Dismiss") }
+                },
+            )
         }
 
         // Live discovery: static spots + Google Places around the GPS.

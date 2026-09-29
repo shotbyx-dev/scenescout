@@ -43,6 +43,7 @@ import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
+import kotlinx.coroutines.CancellationException
 import com.scenescout.app.data.Spot
 import com.scenescout.app.data.imagery.GoogleImageryRepository
 import com.scenescout.app.data.imagery.SpotImage
@@ -96,7 +97,42 @@ fun MapScreen(
     }
 
     Box(Modifier.fillMaxSize()) {
-        if (!hasApiKey) {
+        // If the Maps SDK throws during setup (bad key, Play Services
+        // issue), degrade to the setup card instead of crashing the app.
+        var mapFailed by remember { mutableStateOf(false) }
+        if (hasApiKey && !mapFailed) {
+            try {
+                GoogleMap(
+                    modifier = Modifier.fillMaxSize(),
+                    cameraPositionState = cameraPositionState,
+                    properties = MapProperties(
+                        mapStyleOptions = MapStyleOptions(DARK_MAP_STYLE),
+                    ),
+                    uiSettings = MapUiSettings(
+                        compassEnabled = false,
+                        myLocationButtonEnabled = false,
+                    ),
+                    onMapClick = { selected = null },
+                ) {
+                    spots.forEach { spot ->
+                        Marker(
+                            state = MarkerState(
+                                position = LatLng(spot.latitude, spot.longitude),
+                            ),
+                            title = spot.name,
+                            onClick = {
+                                selected = spot
+                                true
+                            },
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                mapFailed = true
+            }
+        }
+        if (!hasApiKey || mapFailed) {
             // Honest setup state instead of a broken map.
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 GlassCard(modifier = Modifier.padding(24.dp)) {
@@ -114,37 +150,21 @@ fun MapScreen(
                                 "missing it.",
                             style = MaterialTheme.typography.bodyMedium,
                         )
+                        if (mapFailed) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "The map couldn't start on this device, so " +
+                                    "it's hidden for now — everything else " +
+                                    "still works.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         Spacer(Modifier.height(12.dp))
                         Button(onClick = onOpenKeySettings) {
                             Text("Add API key")
                         }
                     }
-                }
-            }
-        } else {
-            GoogleMap(
-                modifier = Modifier.fillMaxSize(),
-                cameraPositionState = cameraPositionState,
-                properties = MapProperties(
-                    mapStyleOptions = MapStyleOptions(DARK_MAP_STYLE),
-                ),
-                uiSettings = MapUiSettings(
-                    compassEnabled = false,
-                    myLocationButtonEnabled = false,
-                ),
-                onMapClick = { selected = null },
-            ) {
-                spots.forEach { spot ->
-                    Marker(
-                        state = MarkerState(
-                            position = LatLng(spot.latitude, spot.longitude),
-                        ),
-                        title = spot.name,
-                        onClick = {
-                            selected = spot
-                            true
-                        },
-                    )
                 }
             }
         }
