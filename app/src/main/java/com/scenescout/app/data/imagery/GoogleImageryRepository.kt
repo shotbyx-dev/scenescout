@@ -36,7 +36,7 @@ class GoogleImageryRepository(
      * no Google photos — the card then shows its branded gradient.
      */
     suspend fun heroForAsync(spot: Spot): SpotImage? {
-        if (heroCache.containsKey(spot.id)) return heroCache[spot.id]
+        heroCache[spot.id]?.let { return it }
         val hero = withContext(Dispatchers.Default) {
             val key = apiKey()
             if (!GooglePlaces.hasKey(key) || spot.photoRefs.isEmpty()) {
@@ -51,12 +51,14 @@ class GoogleImageryRepository(
                 )
             }
         }
-        heroCache[spot.id] = hero
+        // ConcurrentHashMap forbids null values — only cache real heroes.
+        // Null (no key / no photos) is cheap to recompute: no network.
+        if (hero != null) heroCache[spot.id] = hero
         return hero
     }
 
     fun clearCache() = heroCache.clear()
 
     // Concurrent: many cards request heroes at once while scrolling.
-    private val heroCache = java.util.concurrent.ConcurrentHashMap<String, SpotImage?>()
+    private val heroCache = java.util.concurrent.ConcurrentHashMap<String, SpotImage>()
 }

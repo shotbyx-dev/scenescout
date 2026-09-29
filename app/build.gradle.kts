@@ -12,8 +12,8 @@ android {
         applicationId = "com.scenescout.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 12
-        versionName = "0.10.3"
+        versionCode = 13
+        versionName = "0.10.4"
 
         // Google Maps + Places API key: MAPS_API_KEY gradle property
         // (local.properties for dev, GitHub secret MAPS_API_KEY in CI).
